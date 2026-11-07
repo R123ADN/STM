@@ -1,0 +1,2265 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>[hidden]{display:none!important}body{margin:0}img{max-width:100%}</style></head><body><title>Easy Cab Order Portal</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+/* Layout: top bar with the four areas (Shop, Basket, Workshop, Inventory); each area is one working column. Tokens follow the Easy Cab Builder app. */
+:root{
+  --bg:#F6F4EF; --surface:#FFFFFF; --surface-2:#F0EDE6; --line:#E3DED3; --line-2:#D3CDBF;
+  --ink:#1D201C; --ink-2:#4A4E46; --muted:#7F7B70;
+  --olive:#56643E; --olive-ink:#FFFFFF; --olive-soft:#E5E9D9;
+  --oak:#A8764A; --oak-soft:#F3E8DA;
+  --ok:#35704A; --ok-soft:#E1EFE5; --warn:#9A6414; --warn-soft:#F6EAD4; --bad:#A33F2E; --bad-soft:#F6E0DA; --info:#355A84; --info-soft:#E0E8F2;
+  --board:#EFE6D6; --board-line:#B9A88C; --door:#DDE3CF;
+  --font:'Manrope',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+  --r:12px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  color-scheme:dark;
+  --bg:#121411; --surface:#1A1D19; --surface-2:#21251F; --line:#2C3129; --line-2:#3A4036;
+  --ink:#ECE9E1; --ink-2:#C3C0B6; --muted:#8E8B81;
+  --olive:#A3B383; --olive-ink:#141712; --olive-soft:#28301F;
+  --oak:#D5A677; --oak-soft:#342A1F;
+  --ok:#7DC293; --ok-soft:#1D3224; --warn:#E2AA5C; --warn-soft:#382C19; --bad:#E68A76; --bad-soft:#3A221D; --info:#8CB0DB; --info-soft:#1C2939;
+  --board:#2B2620; --board-line:#6B5E4A; --door:#2F3727;
+}}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#121411; --surface:#1A1D19; --surface-2:#21251F; --line:#2C3129; --line-2:#3A4036;
+  --ink:#ECE9E1; --ink-2:#C3C0B6; --muted:#8E8B81;
+  --olive:#A3B383; --olive-ink:#141712; --olive-soft:#28301F;
+  --oak:#D5A677; --oak-soft:#342A1F;
+  --ok:#7DC293; --ok-soft:#1D3224; --warn:#E2AA5C; --warn-soft:#382C19; --bad:#E68A76; --bad-soft:#3A221D; --info:#8CB0DB; --info-soft:#1C2939;
+  --board:#2B2620; --board-line:#6B5E4A; --door:#2F3727;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:500 14.5px/1.55 var(--font);-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+.bar-in{max-width:1240px;margin:0 auto;padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center;justify-content:space-between}
+.brand{display:flex;align-items:baseline;gap:10px}
+.brand b{font-size:18px;font-weight:800;letter-spacing:-.01em}
+.brand span{font:600 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--oak)}
+nav{display:flex;gap:4px;flex-wrap:wrap}
+nav button{border:0;background:none;padding:8px 12px;border-radius:8px;color:var(--ink-2);font:700 13.5px var(--font);cursor:pointer}
+nav button[aria-current=page]{background:var(--olive-soft);color:var(--ink)}
+nav .count{display:inline-block;min-width:20px;padding:0 6px;border-radius:999px;background:var(--oak);color:#fff;font:700 11px/18px var(--mono);margin-left:4px;text-align:center}
+.wrap{max-width:1240px;margin:0 auto;padding-block:22px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:18px}
+h1{font-size:clamp(22px,3vw,28px);line-height:1.2;margin:0;font-weight:800;letter-spacing:-.02em;text-wrap:balance}
+h2{font-size:12.5px;margin:0;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.lead{color:var(--ink-2);margin:4px 0 0;max-width:68ch}
+.note{display:flex;gap:10px;align-items:flex-start;padding:10px 14px;border-radius:10px;background:var(--info-soft);color:var(--info);font-size:13px}
+.note.warn{background:var(--warn-soft);color:var(--warn)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:grid;gap:14px;min-width:0}
+.filters{display:flex;flex-wrap:wrap;gap:6px}
+.pill{border:1px solid var(--line-2);background:var(--surface);border-radius:999px;padding:6px 12px;font:600 13px var(--font);color:var(--ink-2);cursor:pointer}
+.pill[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:grid;gap:10px;align-content:start}
+.card .pic{background:var(--surface-2);border-radius:8px;display:grid;place-items:center;height:170px}
+.card .pic svg{max-height:150px;max-width:90%}
+.card .code{font:700 12px var(--mono);color:var(--oak);letter-spacing:.04em}
+.card .nm{font-weight:700;font-size:15px;line-height:1.3}
+.card .dims{font:500 12.5px var(--mono);color:var(--muted)}
+.card .price{font-weight:800;font-size:16px;font-variant-numeric:tabular-nums}
+.card .price small{font-weight:500;color:var(--muted);font-size:12px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:end}
+label.f{display:grid;gap:4px;font-size:12px;color:var(--ink-2);font-weight:600;flex:1 1 90px;min-width:0}
+select,input,textarea{font:500 14px var(--font);color:var(--ink);background:var(--surface-2);border:1px solid var(--line-2);border-radius:8px;padding:8px 10px;width:100%}
+input[type=number]{font-family:var(--mono)}
+textarea{min-height:70px;resize:vertical}
+button.b{font:700 13.5px var(--font);border-radius:8px;padding:9px 14px;cursor:pointer;border:1px solid var(--line-2);background:var(--surface-2);color:var(--ink)}
+button.b.primary{background:var(--olive);color:var(--olive-ink);border-color:var(--olive)}
+button.b.sm{padding:5px 10px;font-size:12.5px}
+button.b:disabled{opacity:.5;cursor:not-allowed}
+button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--oak);outline-offset:2px}
+.two{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:900px){.two{grid-template-columns:minmax(0,1fr)}}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13.5px;font-variant-numeric:tabular-nums}
+th{font:600 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;padding:8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:8px;border-bottom:1px solid var(--line);vertical-align:middle}
+td.num,th.num{text-align:right}
+.mono{font-family:var(--mono);font-size:12.5px}
+.chip{display:inline-block;font:600 11px var(--mono);padding:2px 8px;border-radius:999px;background:var(--surface-2);color:var(--ink-2);border:1px solid var(--line);white-space:nowrap}
+.chip.new{background:var(--warn-soft);color:var(--warn);border-color:transparent}
+.chip.released{background:var(--info-soft);color:var(--info);border-color:transparent}
+.chip.done{background:var(--ok-soft);color:var(--ok);border-color:transparent}
+.tot{display:grid;grid-template-columns:1fr auto;gap:4px 16px;font-variant-numeric:tabular-nums}
+.tot b{font-size:18px}
+.hint{font-size:12.5px;color:var(--muted);margin:0}
+.msg{font-size:13px;color:var(--ink-2)}
+.orders{display:grid;gap:6px}
+.ord{display:grid;grid-template-columns:auto 1fr auto;gap:4px 12px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:10px;cursor:pointer;background:var(--surface);text-align:left;font:inherit;color:inherit;width:100%}
+.ord[aria-current=true]{border-color:var(--olive);background:var(--olive-soft)}
+.ord .who{font-weight:700}
+.ord .when{font-size:12px;color:var(--muted)}
+.stats{display:flex;flex-wrap:wrap;gap:8px 28px}
+.stats div b{display:block;font:800 22px var(--mono)}
+.stats div span{font-size:12px;color:var(--muted)}
+.invform{display:flex;flex-wrap:wrap;gap:10px;align-items:end;padding:14px;background:var(--surface-2);border-radius:10px}
+.invform input,.invform select{background:var(--surface)}
+.invform label.f{flex:1 1 110px}
+.invwrap{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}
+.invleft{display:flex;flex-direction:column;gap:12px;min-width:0}
+.invview{margin:0;position:sticky;top:70px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px}
+.invview svg{width:100%;height:auto;max-height:70vh;display:block}
+.invview figcaption{font-size:12px;color:var(--muted);margin-top:6px;text-align:center}
+@media (max-width:820px){.invwrap{grid-template-columns:1fr}.invview{position:static}.invview svg{max-height:420px}}
+.acts{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
+.empty{padding:28px 16px;text-align:center;color:var(--muted);border:1px dashed var(--line-2);border-radius:var(--r)}
+.labels{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
+.labels div{background:#fff;border:1px solid var(--line-2);border-radius:4px;overflow:hidden}
+.labels svg{width:100%;height:auto;display:block}
+.sheets{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.sheets figure{margin:0;background:var(--surface);border:1px solid var(--line-2);border-radius:6px;padding:8px}
+.sheets svg{width:100%;height:auto;display:block}
+.sheets figcaption{font-size:12px;color:var(--muted);margin-top:6px}
+[data-view]{display:grid;gap:18px}
+@media (prefers-reduced-motion:no-preference){.card{transition:border-color .15s}.card:hover{border-color:var(--line-2)}}
+</style>
+
+<header class="bar"><div class="bar-in">
+  <div class="brand"><b>Easy Cab</b><span>Order portal</span></div>
+  <nav aria-label="Areas">
+    <button type="button" data-go="shop" aria-current="page">Shop</button>
+    <button type="button" data-go="basket">Basket <span class="count" id="basketCount" hidden>0</span></button>
+    <button type="button" data-go="workshop" class="staff">Workshop</button>
+    <button type="button" data-go="inventory" class="staff">Inventory</button>
+  </nav>
+</div></header>
+
+<main class="wrap">
+  <div class="note" id="modeNote" hidden></div>
+
+  <!-- SHOP -->
+  <section data-view="shop">
+    <div>
+      <h1>Kitchen and bedroom cabinets, made to order</h1>
+      <p class="lead">Choose your cabinets, pick the door side and quantity, and place the order. It goes straight to our workshop, where every panel is cut, edged, labelled and drilled.</p>
+    </div>
+    <div class="filters" id="cats" role="group" aria-label="Category"></div>
+    <div class="cards" id="cards"></div>
+  </section>
+
+  <!-- BASKET -->
+  <section data-view="basket" hidden>
+    <h1>Your basket</h1>
+    <div class="two">
+      <div class="panel">
+        <div class="tbl"><table>
+          <thead><tr><th>Cabinet</th><th>Door</th><th class="num">Qty</th><th class="num">Price</th><th></th></tr></thead>
+          <tbody id="basketRows"></tbody>
+        </table></div>
+        <div class="tot" id="totals"></div>
+      </div>
+      <form class="panel" id="checkout" autocomplete="on">
+        <h2>Your details</h2>
+        <label class="f" for="cName">Name<input id="cName" name="name" required maxlength="80"></label>
+        <div class="row">
+          <label class="f" for="cPhone">Phone<input id="cPhone" name="tel" type="tel" maxlength="30"></label>
+          <label class="f" for="cEmail">Email<input id="cEmail" name="email" type="email" maxlength="120"></label>
+        </div>
+        <label class="f" for="cAddr">Delivery address<textarea id="cAddr" name="address" maxlength="400"></textarea></label>
+        <label class="f" for="cRef">Your reference (room, project)<input id="cRef" maxlength="80" placeholder="e.g. Smith kitchen"></label>
+        <button class="b primary" type="submit" id="placeBtn">Place order</button>
+        <p class="msg" id="orderMsg" role="status"></p>
+      </form>
+    </div>
+  </section>
+
+  <!-- WORKSHOP -->
+  <section data-view="workshop" hidden>
+    <div>
+      <h1>Workshop</h1>
+      <p class="lead">Orders arrive here. Release an order to give it a job number, then download its machine files: drilling programs for the boring machine, a label for every part, and the cut list.</p>
+    </div>
+    <div class="two">
+      <div class="panel">
+        <div class="row" style="justify-content:space-between;align-items:center"><h2>Orders</h2>
+          <label class="f" for="nextJob" style="flex:0 0 150px">Next job number<input id="nextJob" type="number" min="1" max="99"></label></div>
+        <div class="orders" id="orderList"></div>
+      </div>
+      <div class="panel" id="orderDetail"><div class="empty">Choose an order to see its cabinets and machine files.</div></div>
+    </div>
+  </section>
+
+  <!-- INVENTORY -->
+  <section data-view="inventory" hidden>
+    <div>
+      <h1>Inventory</h1>
+      <p class="lead">The cabinets customers can order. Standard cabinets use the drilling rules proven against your Cabinet Vision files. Add your own from the five construction types; the parts list updates as you type.</p>
+    </div>
+    <div class="invwrap"><div class="invleft">
+    <form class="invform" id="invForm" autocomplete="off">
+      <label class="f" for="iCode">Code<input id="iCode" maxlength="20" required placeholder="e.g. SINK800"></label>
+      <label class="f" for="iName" style="flex:2 1 200px">Name<input id="iName" maxlength="60" required placeholder="e.g. Sink base unit 800"></label>
+      <label class="f" for="iCat">Category<select id="iCat"></select></label>
+      <label class="f" for="iPrice">Price £ (ex VAT)<input id="iPrice" type="number" min="0" step="0.01"></label>
+      <label class="f" for="iCon" style="flex:2 1 230px">Construction<select id="iCon"></select></label>
+      <label class="f" for="iW">Width<input id="iW" type="number" min="150" max="1200"></label>
+      <label class="f" for="iH">Height<input id="iH" type="number" min="200" max="2500"></label>
+      <label class="f" for="iD">Depth<input id="iD" type="number" min="250" max="700"></label>
+      <label class="f" for="iDoors">Doors<select id="iDoors"><option value="none">No doors</option><option value="single">Single door</option><option value="pair">Pair of doors</option></select></label>
+      <label class="f" for="iShelves">Shelves<input id="iShelves" type="number" min="0" max="8"></label>
+      <label class="f" for="iDrawers">Drawers<input id="iDrawers" type="number" min="0" max="6"></label>
+      <label class="f" for="iDrType" style="flex:2 1 230px">Drawer type<select id="iDrType"><option value="external">External: runners drilled in the gables</option><option value="internal">Internal: drawer cabinet inside, 32mm fillers</option></select><span id="drHint" class="hint" style="font-size:12px"></span></label>
+      <label class="f" for="iSupport">Stands on<select id="iSupport"><option value="plinth">Plinth</option><option value="legs100">Legs 100mm</option><option value="legs150">Legs 150mm</option></select></label>
+      <label class="f" for="iPlinth">Plinth height<input id="iPlinth" type="number" min="50" max="200"></label>
+      <label class="f" for="iFloor">Gables to the floor<select id="iFloor"><option value="none">None</option><option value="L">LH gable</option><option value="R">RH gable</option><option value="both">Both gables</option></select></label>
+      <div class="row" style="flex:1 1 100%">
+        <button class="b primary" type="submit">Save cabinet</button>
+        <button class="b" type="button" id="iNew">New cabinet</button>
+        <span class="msg" id="invMsg" role="status"></span>
+      </div>
+    </form>
+    <div class="tbl" id="invPreview"></div>
+    </div>
+    <figure class="invview" aria-live="polite"><div id="invView"></div><figcaption id="invViewCap">Front view, doors off</figcaption></figure>
+    </div>
+    <div class="panel">
+      <h2>In the shop</h2>
+      <div class="tbl"><table>
+        <thead><tr><th>Code</th><th>Name</th><th>Category</th><th>W × H × D</th><th class="num">Price</th><th>Rules</th><th></th></tr></thead>
+        <tbody id="invRows"></tbody>
+      </table></div>
+    </div>
+  </section>
+</main>
+
+<script>
+/*
+ * Easy Cab parts engine
+ * ---------------------
+ * Turns a cabinet (type + size + options) into the list of panels the
+ * workshop cuts: size, material, edging per edge, and every drilling, in the
+ * same coordinate system Cabinet Vision uses for the Homag WoodWOP (.mpr)
+ * programs read by the SOPH MSZ600CR boring machine.
+ *
+ * Rules were reverse-engineered from job R04 (60 real .mpr programs + labels).
+ * Anything that is only backed by a single sample is marked  // ONE-SAMPLE
+ * so it can be confirmed when more jobs are compared.
+ *
+ * Works in the browser (window.EasyCabEngine) and in Node (module.exports).
+ */
+(function (root) {
+  'use strict';
+
+  // ---------- workshop constants (from the R04 files) ----------
+  const T = 18.2;            // board thickness as programmed (18mm Egger)
+  const FRONT = 2;           // carcass panels start 2mm back from the side's front edge (2mm front edging)
+  const SIDE_LINE = 9;       // centre line of a butt joint drilled into a side
+  const BACK_LINE = 9.1;     // T/2, used for screw holes through the back
+  const CAM = { dia: 15, depth: 13.2, inset: 34 };       // minifix housing
+  const BOLT = { dia: 8, depth: 34, z: 9.2 };             // edge bore (bolt / dowel)
+  const SIDE_BOLT = { dia: 5, depth: 13 };                // bolt screw hole in the mating side
+  const SHELF_PIN = { dia: 5, depth: 12 };
+  const HINGE = { dia: 5, depth: 12, y: 37, pitch: 32, endOffset: 102.5 };
+  const LEG = { dia: 10, depth: 12, half: 32, edge: 44.8 };
+  const HANGER = { dia: 10, depth: 14, fromBack: 11, xs: [74, 106, 138, 170] };
+  const SCREW = { dia: 5, depth: 18.4 };                  // through the back into top/base
+  const JOINT_STD = [25, 217, 441];                       // connector positions from the front
+  const EDGES = {
+    E: '2MM Board Match E-Plain',
+    B: '2MM Board Match E-Plain',
+    I: '0.8mm Board Match E-Plain',
+  };
+  const MATERIAL = '18mm Egger Plain';
+
+  const r1 = (v) => Math.round(v * 100) / 100;
+
+  // ---------- low level hole helpers ----------
+  const V = (x, y, dia, depth, bm = 'LS') => ({ op: 'V', x: r1(x), y: r1(y), dia, depth, bm });
+  const H = (x, y, bm, dia = BOLT.dia, depth = BOLT.depth, z = BOLT.z) =>
+    ({ op: 'H', x: r1(x), y: r1(y), dia, depth, z, bm });
+
+  /** connector + dowel positions across a panel of depth d (from its front edge) */
+  function jointPositions(d, opts = {}) {
+    if (opts.narrow || d < 200) {
+      // rails (160) and similar: two connectors, one dowel        // ONE-SAMPLE size (160)
+      if (d <= 110) return { cams: [25, d - 25], dowels: [] };      // plinths (100)
+      return { cams: [25, d - 39], dowels: [57] };
+    }
+    const cams = JOINT_STD.filter((p) => p + 32 <= d - 10);
+    return { cams, dowels: cams.map((p) => p + 32) };
+  }
+
+  /**
+   * A horizontal panel (base, top, bottom, rail, plinth) joined at both ends to
+   * the sides. L = width between sides, W = depth.
+   * flipped: panel is programmed from its back edge (tops, rails) - positions mirror.
+   */
+  function horizontalPanelHoles(L, W, jp, flipped) {
+    const map = (p) => (flipped ? W - p : p);
+    const holes = [];
+    for (const c of jp.cams) {
+      holes.push(V(CAM.inset, map(c), CAM.dia, CAM.depth));
+      holes.push(V(L - CAM.inset, map(c), CAM.dia, CAM.depth));
+    }
+    for (const p of [...jp.cams, ...jp.dowels]) {
+      holes.push(H(0, map(p), 'XP'));
+      holes.push(H(L, map(p), 'XM'));
+    }
+    return holes;
+  }
+
+  /** matching holes in a side for a horizontal panel at side-x = line */
+  function sideJointHoles(line, jp, front, dowelDepth, reversedDepth) {
+    // reversedDepth: panel programmed from the back (rails) - convert to "from front"
+    const fromFront = (p) => (reversedDepth ? reversedDepth - p : p);
+    const holes = [];
+    const jpF = reversedDepth
+      ? { cams: jp.cams.map(fromFront), dowels: jp.dowels.map(fromFront) }
+      : jp;
+    for (const c of jpF.cams) holes.push(V(line, front + c, SIDE_BOLT.dia, SIDE_BOLT.depth));
+    for (const d of jpF.dowels) holes.push(V(line, front + d, BOLT.dia, dowelDepth));
+    return holes;
+  }
+
+  function legPlate(cx, cy) {
+    const h = LEG.half;
+    return [
+      V(cx - h, cy - h, LEG.dia, LEG.depth), V(cx + h, cy - h, LEG.dia, LEG.depth),
+      V(cx - h, cy + h, LEG.dia, LEG.depth), V(cx + h, cy + h, LEG.dia, LEG.depth),
+    ];
+  }
+
+  /** screw holes through the back into a top/base: from 50 to W-100, snapped to 32 grid */
+  function backScrewPositions(Wb) {
+    const n = Math.ceil((Wb - 150) / 310) + 1;
+    const span = Wb - 150;
+    const out = [50];
+    // fitted to all 4 back widths in R04 (563.6, 763.6, 813.6, 963.6): equal split, snapped to the 32 grid
+    for (let i = 1; i < n - 1; i++) out.push(50 + Math.round(((span * i) / (n - 1) - 6.4) / 32) * 32);
+    out.push(r1(Wb - 100));
+    return out;
+  }
+
+  /** connector positions down the height of a back panel */
+  function backJointXs(h, fromEnd) {
+    if (h < 1000) {
+      const xs = [25, 313, 601].filter((x) => x <= h - 25);
+      return fromEnd === 'bottom' ? xs.map((x) => r1(h - x)).reverse() : xs;
+    }
+    const n = Math.ceil((h - 100) / 500) + 1;
+    const step = (h - 100) / (n - 1);
+    return Array.from({ length: n }, (_, i) => r1(50 + i * step));
+  }
+
+  function shelfRows(H, n) {
+    // equal spacing measured from the top joint (T) to the bottom of the side
+    const step = (H - T) / (n + 1);
+    // Cabinet Vision truncates the row position to 0.1mm (WM: 486.07 -> 486)
+    return Array.from({ length: n }, (_, i) => Math.floor((T + (i + 1) * step) * 10 + 1e-6) / 10);
+  }
+
+  /**
+   * Shelf pin rows for n shelves spread evenly between two faces (measured from the top of the side):
+   * equal clear space above, between and below the shelves. The shelf sits on the pins, so a row is the
+   * underside of its shelf. Used for your own cabinets; the standard ones keep the CV rule (shelfRows).
+   */
+  /** with drawers and a single shelf: the shelf goes 300mm clear below the top (your rule) */
+  const TOP_GAP_ONE_SHELF = 300;
+  function topGapRow(top, bottom) {
+    const row = r1(top + TOP_GAP_ONE_SHELF + T);
+    return row <= bottom - 50 ? [row] : evenRows(top, bottom, 1);
+  }
+  function evenRows(top, bottom, n) {
+    if (!n) return [];
+    const gap = (bottom - top - n * T) / (n + 1);
+    return Array.from({ length: n }, (_, i) => Math.floor((top + (i + 1) * (gap + T)) * 10 + 1e-6) / 10);
+  }
+
+  // ---------- part builders ----------
+  function part(name, L, W, holes, edges, extra = {}) {
+    return Object.assign({ name, L: r1(L), W: r1(W), T, material: MATERIAL, edges, holes }, extra);
+  }
+
+  /**
+   * Side panel ("LH End" / "RH End"). Built as LH (y from the front) and mirrored for RH.
+   * spec fields: H, D, front, joints[{line, jp, dowelDepth, reversed}], backY, backXs,
+   * shelves {xs, pins, yFront, yBack}, hinges[], hangers, runners{xs,ys}, plinths{xs,ys}
+   */
+  function sidePanel(hand, s) {
+    let holes = [];
+    for (const j of s.joints || [])
+      holes.push(...sideJointHoles(j.line, j.jp, s.front, j.dowelDepth, j.reversed));
+    for (const x of s.backXs || []) holes.push(V(x, s.backY, SIDE_BOLT.dia, SIDE_BOLT.depth));
+    if (s.shelves) {
+      for (const cx of s.shelves.xs) {
+        const n = s.shelves.pins;
+        for (let i = 0; i < n; i++) {
+          const x = cx + (i - (n - 1) / 2) * 32;
+          holes.push(V(x, s.shelves.yFront, SHELF_PIN.dia, SHELF_PIN.depth));
+          holes.push(V(x, s.shelves.yBack, SHELF_PIN.dia, SHELF_PIN.depth));
+        }
+      }
+    }
+    if (s.hinges && (s.hingeOn === 'both' || s.hingeOn === hand)) {
+      for (const h of s.hinges) {
+        holes.push(V(h - 16, HINGE.y, HINGE.dia, HINGE.depth));
+        holes.push(V(h + 16, HINGE.y, HINGE.dia, HINGE.depth));
+      }
+    }
+    if (s.hangers) for (const x of HANGER.xs) holes.push(V(x, s.D - HANGER.fromBack, HANGER.dia, HANGER.depth));
+    if (s.runners) for (const x of s.runners.xs) for (const y of s.runners.ys) holes.push(V(x, y, 5, 12));
+    if (s.plinths) for (const x of s.plinths.xs) for (const y of s.plinths.ys) holes.push(V(x, y, SIDE_BOLT.dia, SIDE_BOLT.depth));
+    if (hand === 'R') holes = holes.map((h) => Object.assign({}, h, { y: r1(s.D - h.y) }));
+    return part(hand === 'L' ? 'LH End' : 'RH End', s.H, s.D, holes,
+      { front: 'E', back: 'I', top: 'I', bottom: 'I' }, { role: hand === 'L' ? 'lhEnd' : 'rhEnd' });
+  }
+
+  /** solid 18mm back fitted between the sides */
+  function backPanel(h, Wb, o) {
+    const holes = [];
+    for (const x of o.xs) {
+      if (o.edgeNear !== false) holes.push(V(x, CAM.inset, CAM.dia, CAM.depth));
+      if (o.edgeFar !== false) holes.push(V(x, Wb - CAM.inset, CAM.dia, CAM.depth));
+    }
+    if (o.screwTop) for (const y of o.screwTop) holes.push(V(BACK_LINE, y, SCREW.dia, SCREW.depth, 'LSL'));
+    if (o.screwBottom) for (const y of o.screwBottom) holes.push(V(o.screwBottomX ?? h - BACK_LINE, y, SCREW.dia, SCREW.depth, 'LSL'));
+    if (o.centrePins) for (const x of o.centrePins) holes.push(V(x, o.centrePinY ?? Wb / 2, SHELF_PIN.dia, o.centrePinBM === 'LSL' ? SCREW.depth : SHELF_PIN.depth, o.centrePinBM || 'LSU'));
+    if (o.extra) holes.push(...o.extra);
+    for (const x of o.xs) {
+      if (o.edgeFar !== false) holes.push(H(x, Wb, 'YM'));
+      if (o.edgeNear !== false) holes.push(H(x, 0, 'YP'));
+    }
+    return part('Back', h, Wb, holes, { top: 'I', bottom: 'I' }, { role: 'back', file: o.file });
+  }
+
+  function shelfPanel(L, W, centre) {
+    const holes = [
+      V(9.5, 30, 5, 12), V(9.5, W - 30, 5, 12), V(L - 9.5, W - 30, 5, 12), V(L - 9.5, 30, 5, 12),
+    ];
+    if (centre) holes.push(V(L / 2, W - 9, 5, 12));
+    return part('Adjustable Shelf', L, W, holes, { front: 'B', back: 'I', left: 'I', right: 'I' }, { role: 'shelf' });
+  }
+
+  function pinXs(rows, pins) {
+    const xs = [];
+    for (const cx of rows) for (let i = 0; i < pins; i++) xs.push(r1(cx + (i - (pins - 1) / 2) * 32));
+    return xs;
+  }
+
+  // ---------- cabinet families ----------
+  /**
+   * Every family returns { code, description, parts[] }.
+   * w = overall width, h = carcass height, d = side depth.
+   */
+  const FAMILIES = {};
+
+  // Highline base unit with door(s), top rail, base on legs, one adjustable shelf.
+  FAMILIES.BHL = {
+    label: 'Highline base unit',
+    defaults: { w: 600, h: 720, d: 570, shelves: 1, hinge: 'L' },
+    build(o) {
+      return baseLike(o, { doors: true, shelves: o.shelves, drawerRunners: null });
+    },
+  };
+
+  // Drawer base (3 drawers), rail at top, base on legs.
+  FAMILIES.B3D = {
+    label: '3 drawer base unit',
+    defaults: { w: 600, h: 720, d: 570 },
+    build(o) {
+      return baseLike(o, {
+        doors: false, shelves: 0,
+        // ONE-SAMPLE: runner heights for a 720 carcass with 3 drawers
+        drawerRunners: { xs: [93, 380.5, 667.8], ys: [19, 37, 165, 261] },
+      });
+    },
+  };
+
+  function baseLike(o, f) {
+    const { w, h, d } = o;
+    const Wi = r1(w - 2 * T);
+    const backFront = r1(d - 68.2);                 // 50mm service void behind the back
+    const baseD = r1(backFront - FRONT);
+    const shelfD = r1(backFront - FRONT - 73);
+    const railJ = jointPositions(160, { narrow: true });
+    const baseJ = jointPositions(baseD);
+    const rows = f.shelfRows || (f.shelves ? shelfRows(h, f.shelves) : []);
+    const twoDoors = o.pair ?? (w > 600);
+    const backXs = backJointXs(h, 'top');
+    const centre = Wi >= 700;
+    const sideSpec = {
+      H: h, D: d, front: FRONT,
+      joints: [
+        { line: SIDE_LINE, jp: railJ, dowelDepth: 12 },
+        { line: h - SIDE_LINE, jp: baseJ, dowelDepth: 13 },
+      ],
+      backY: Math.round(backFront + BACK_LINE), backXs,
+      shelves: rows.length ? { xs: rows, pins: 3, yFront: FRONT + 73 + 30, yBack: r1(backFront - 30) } : null,
+      hinges: f.doors ? (o.hingeXs || [HINGE.endOffset, h - HINGE.endOffset]) : null,
+      hingeOn: twoDoors ? 'both' : o.hinge,
+      runners: f.drawerRunners,
+    };
+    const parts = [
+      sidePanel('L', sideSpec),
+      sidePanel('R', sideSpec),
+      backPanel(h, Wi, {
+        xs: backXs, screwBottom: backScrewPositions(Wi),
+        centrePins: centre && rows.length ? pinXs(rows, 3) : null,
+        file: Wi >= 700 ? 'wide' : undefined,
+      }),
+      part('Rail', Wi, 160, horizontalPanelHoles(Wi, 160, railJ, true), { front: 'E', back: 'I' }, { role: 'rail' }),
+      part('Base', Wi, baseD, [
+        ...legPlates(Wi, baseD),
+        ...horizontalPanelHoles(Wi, baseD, baseJ, false),
+      ], { front: 'E' }, { role: 'base' }),
+    ];
+    for (let i = 0; i < rows.length; i++) parts.push(shelfPanel(Wi - 1, shelfD, centre));
+    if (twoDoors && f.doors) parts.push(part('Center Post', h - 2 * T, 70, [], {}, { role: 'post' }));
+    parts.meta = { rows };
+    return parts;
+  }
+
+  function legPlates(L, D) {
+    const xs = [LEG.edge, L - LEG.edge];
+    if (L > 800) xs.splice(1, 0, L / 2);
+    const ys = [87, D - 67.8];
+    const out = [];
+    for (const x of xs) for (const y of ys) out.push(...legPlate(x, y));
+    return out;
+  }
+
+  // Wall unit: top, bottom, back, hanging brackets, shelves.
+  FAMILIES.WM = {
+    label: 'Wall unit',
+    defaults: { w: 600, h: 720, d: 300, shelves: 2, hinge: 'R' },
+    build(o) {
+      const { w, h, d } = o;
+      const Wi = r1(w - 2 * T);
+      const backFront = r1(d - 35.2);                // 17mm void behind the back
+      const panD = r1(backFront - FRONT);
+      const shelfD = r1(backFront - FRONT - 21);
+      const J = jointPositions(panD);
+      const rows = o.shelfRows || shelfRows(h, o.shelves);
+      const twoDoors = o.pair ?? (w > 600);
+      const backXs = backJointXs(h, 'bottom');
+      const centre = Wi >= 700;
+      const sideSpec = {
+        H: h, D: d, front: FRONT,
+        joints: [
+          { line: SIDE_LINE, jp: J, dowelDepth: 12 },
+          { line: h - SIDE_LINE, jp: J, dowelDepth: 12 },
+        ],
+        backY: Math.round(backFront + BACK_LINE), backXs,
+        shelves: { xs: rows, pins: 3, yFront: FRONT + 21 + 30, yBack: r1(backFront - 30) },
+        hinges: o.doors === 'none' ? null : (o.hingeXs || [HINGE.endOffset, h - HINGE.endOffset]),
+        hingeOn: twoDoors ? 'both' : o.hinge,
+        hangers: true,
+      };
+      const screws = backScrewPositions(Wi);
+      const parts = [
+        sidePanel('L', sideSpec),
+        sidePanel('R', sideSpec),
+        backPanel(h, Wi, {
+          xs: backXs, screwBottom: screws, screwTop: screws.map((y) => r1(Wi - y)).reverse(),
+          centrePins: centre ? pinXs(rows, 3) : null,
+        }),
+        part('Top', Wi, panD, horizontalPanelHoles(Wi, panD, J, true), { front: 'E' }, { role: 'top' }),
+        part('Bottom', Wi, panD, horizontalPanelHoles(Wi, panD, J, false), { front: 'E' }, { role: 'bottom' }),
+      ];
+      // two 18mm holes in the back for the hanging-bracket adjusters, routed on the nesting machine
+      // (not in the .mpr; CV puts them 83mm from the top end, 18mm in from each side)
+      parts[2].routes = [{ x: 83, y: 18, dia: 18 }, { x: 83, y: r1(parts[2].W - 18), dia: 18 }];
+      for (let i = 0; i < rows.length; i++) parts.push(shelfPanel(Wi - 1, shelfD, centre));
+      if (twoDoors && o.doors !== 'none') parts.push(part('Center Post', h - 2 * T, 80, [], {}, { role: 'post' }));
+      parts.meta = { rows };
+      return parts;
+    },
+  };
+
+  // Tall larder: full top and base, 5 adjustable shelves, two doors on one side.
+  FAMILIES.LM = {
+    label: 'Larder unit',
+    defaults: { w: 600, h: 1970, d: 570, shelves: 5, hinge: 'L' },
+    build(o) {
+      const { w, h, d } = o;
+      const Wi = r1(w - 2 * T);
+      const backFront = r1(d - 68.2);
+      const panD = r1(backFront - FRONT);
+      const shelfD = r1(backFront - FRONT - 73);
+      const J = jointPositions(panD);
+      const rows = o.shelfRows || shelfRows(h, o.shelves);
+      const backXs = backJointXs(h);
+      const sideSpec = {
+        H: h, D: d, front: FRONT,
+        joints: [
+          { line: SIDE_LINE, jp: J, dowelDepth: 13 },
+          { line: h - SIDE_LINE, jp: J, dowelDepth: 13 },
+        ],
+        backY: Math.round(backFront + BACK_LINE), backXs,
+        shelves: { xs: rows, pins: 3, yFront: FRONT + 73 + 30, yBack: r1(backFront - 30) },
+        // ONE-SAMPLE: hinge layout for a 1970 larder (two doors)
+        hinges: o.doors === 'none' ? null : (o.hingeXs || [102.5, 625, 1147.5, 1352.5, h - 102.5]),
+        hingeOn: o.pair ? 'both' : o.hinge,
+      };
+      const screws = backScrewPositions(Wi);
+      const parts = [
+        sidePanel('L', sideSpec),
+        sidePanel('R', sideSpec),
+        Object.assign(backPanel(h, Wi, {
+          xs: backXs, screwBottom: screws, screwTop: screws.map((y) => r1(Wi - y)).reverse(),
+        }), {}),
+        part('Top', Wi, panD, horizontalPanelHoles(Wi, panD, J, true), { front: 'E' }, { role: 'top' }),
+        part('Base', Wi, panD, [...legPlates(Wi, panD), ...horizontalPanelHoles(Wi, panD, J, false)], { front: 'E' }, { role: 'base' }),
+      ];
+      for (let i = 0; i < rows.length; i++) parts.push(shelfPanel(Wi - 1, shelfD, false));
+      parts.meta = { rows };
+      return parts;
+    },
+  };
+
+  // Wardrobe / tall robe on plinths: full-height back, top, one hat shelf, two doors.
+  FAMILIES.SHR = {
+    label: 'Wardrobe (tall robe)',
+    defaults: { w: 800, h: 2120, d: 570, plinth: 100 },
+    build(o) {
+      const { w, h, d } = o;
+      const Wi = r1(w - 2 * T);
+      const backFront = r1(d - 36.2);                // 18mm void
+      const panD = r1(backFront - FRONT);
+      const shelfD = r1(backFront - FRONT - 73);
+      const J = jointPositions(panD);
+      // stands on two plinths (standard), or on legs (100/150) with the chosen gables running down to the floor
+      const legs = o.support === 'legs';
+      const p = legs ? (o.legH || 100) : o.plinth;    // height under the bottom panel
+      const floor = legs ? (o.floorGables || 'none') : 'both';
+      const toFloor = (hand) => floor === 'both' || floor === hand;
+      const pl = jointPositions(o.plinth || 100);
+      const backH = legs ? r1(h - p) : h;
+      const backXs = backJointXs(backH);
+      const shelfX = o.shelfX ?? 386.4;              // ONE-SAMPLE: hat shelf height from top
+      // drawers (your own wardrobes): external = runners on the wardrobe ends, fixed shelf above, doors above that;
+      // internal = a drawer cabinet inside, behind full-height doors (see internalDrawerUnit)
+      const nDr = o.drawers || 0;
+      const internal = o.drawerType === 'internal';
+      const bottomTop = r1(h - p - T);         // top face of the bottom, measured from the top of the end
+      const packTop = r1(bottomTop - nDr * DRAWER.pitch);
+      const extDrawers = nDr > 0 && !internal;
+      // shelves: 1 = the hat shelf (as CV); more = spread evenly over the open space above any drawers.
+      // With internal drawers there is just the hat shelf.
+      const nSh = internal && nDr > 0 ? 1 : Math.max(0, o.shelves ?? 1);
+      const zoneBottom = nDr > 0 ? (internal ? r1(bottomTop - nDr * DRAWER.pitch) : r1(packTop - T)) : bottomTop;
+      const rows = nSh === 1 ? (nDr > 0 ? topGapRow(T, zoneBottom) : [shelfX]) : evenRows(T, zoneBottom, nSh);
+      const sideSpec = {
+        H: h, D: d, front: FRONT,
+        joints: [{ line: SIDE_LINE, jp: J, dowelDepth: 13 }],
+        backY: Math.round(backFront + BACK_LINE), backXs,
+        shelves: rows.length ? { xs: rows, pins: 5, yFront: FRONT + 73 + 30, yBack: r1(backFront - 30) } : null,
+        // ONE-SAMPLE: 4 hinges on a 2020 door
+        hinges: o.doors === 'none' ? null : extDrawers ? hingesFor(r1(packTop - T)) : (o.hingeXs || [102.5, 752.5, 1267.5, h - p - 102.5]),
+        hingeOn: o.pair === false ? o.hinge : 'both',
+        plinths: legs ? null : { xs: pl.cams.map((c) => r1(h - o.plinth + c)), ys: [12.2, r1(d - 109.2)] },
+      };
+      // on legs the bottom is jointed into the ends like a base
+      if (legs) sideSpec.joints.push({ line: r1(h - p - BACK_LINE), jp: J, dowelDepth: 13 });
+      if (extDrawers) {
+        sideSpec.joints.push({ line: r1(packTop - T / 2), jp: J, dowelDepth: 13 });
+        sideSpec.runners = { xs: drawerRows(nDr, bottomTop), ys: DRAWER.ys };
+      }
+      const extra = [];
+      if (extDrawers) extra.push(part('Fixed Shelf', Wi, panD, horizontalPanelHoles(Wi, panD, J, false), { front: 'E' }, { role: 'base' }));
+      if (nDr > 0 && internal) extra.push(...internalDrawerUnit(Wi, panD, nDr));
+      const out = extra.concat([
+        sidePanel('L', Object.assign({}, sideSpec, { H: toFloor('L') ? h : r1(h - p) })),
+        sidePanel('R', Object.assign({}, sideSpec, { H: toFloor('R') ? h : r1(h - p) })),
+        backPanel(backH, Wi, {
+          xs: backXs,
+          screwTop: backScrewPositions(Wi).map((y) => r1(Wi - y)).reverse(),
+          screwBottom: backScrewPositions(Wi), screwBottomX: r1(h - p - BACK_LINE),
+          centrePins: Wi >= 700 && rows.length ? pinXs(rows, 5) : null,
+        }),
+        part('Top', Wi, panD, horizontalPanelHoles(Wi, panD, J, true), { front: 'E' }, { role: 'top' }),
+        part('Bottom', Wi, panD, legs ? [...legPlates(Wi, panD), ...horizontalPanelHoles(Wi, panD, J, false)] : [], { front: 'E' }, { role: 'bottom' }),
+      ].concat(legs ? [] : [
+        part('Plinth', Wi, o.plinth, horizontalPanelHoles(Wi, o.plinth, pl, false), { top: 'I', bottom: 'I' }, { role: 'plinth' }),
+        part('Plinth', Wi, o.plinth, horizontalPanelHoles(Wi, o.plinth, pl, false), { top: 'I', bottom: 'I' }, { role: 'plinth' }),
+      ]).concat(rows.map(() => shelfPanel(Wi - 1, shelfD, Wi >= 700))))
+        .sort((a, b) => order(a) - order(b));
+      out.meta = { rows, bottomTop, packTop, nDr, internal, hatRail: nSh === 1, legs: legs ? p : 0, under: p, floor };
+      return out;
+      function order(p) { return ['lhEnd', 'rhEnd', 'back', 'top', 'bottom', 'base', 'plinth', 'shelf', 'post'].indexOf(p.role) + (p.inner ? 20 : 0); }
+    },
+  };
+
+  // ---------- drawers in wardrobes ----------
+  // ONE-SAMPLE: spacing and runner holes taken from the C3J drawer unit (lowest runner 39 above the base, 220 apart)
+  const DRAWER = { pitch: 220, aboveBase: 39, ys: [37, 69, 261, 293], filler: 32 };
+  /** runner rows (from the top of the panel) for n drawers sitting on a panel whose top face is at baseTop */
+  function drawerRows(n, baseTop) {
+    return Array.from({ length: n }, (_, i) => r1(baseTop - DRAWER.aboveBase - i * DRAWER.pitch)).reverse();
+  }
+  /**
+   * Internal drawer cabinet inside a wardrobe: two gables standing on the wardrobe bottom, an internal top,
+   * and 32mm fillers (front and back, each side) between the wardrobe ends and the gables so the drawers
+   * clear the doors and hinges. Runners are drilled in the internal gables, not the wardrobe ends.
+   */
+  function internalDrawerUnit(Wi, panD, n) {
+    const P = r1(n * DRAWER.pitch);                  // gable height
+    const J = jointPositions(panD);
+    const ys = DRAWER.ys.filter((y) => y <= panD - 20);
+    const gable = (hand) => {
+      let holes = sideJointHoles(SIDE_LINE, J, 0, 13);
+      for (const x of drawerRows(n, P)) for (const y of ys) holes.push(V(x, y, 5, 12));
+      if (hand === 'R') holes = holes.map((hh) => Object.assign({}, hh, { y: r1(panD - hh.y) }));
+      return part(hand === 'L' ? 'Int Gable LH' : 'Int Gable RH', P, panD, holes,
+        { front: 'E', back: 'I', top: 'I', bottom: 'I' }, { role: hand === 'L' ? 'lhEnd' : 'rhEnd', inner: true });
+    };
+    const Li = r1(Wi - 2 * DRAWER.filler - 2 * T);
+    const parts = [gable('L'), gable('R'),
+      part('Internal Top', Li, panD, horizontalPanelHoles(Li, panD, J, true), { front: 'E' }, { role: 'top', inner: true })];
+    for (let i = 0; i < 4; i++) parts.push(part('Filler', P, DRAWER.filler, [], {}, { role: 'post', inner: true }));
+    return parts;
+  }
+
+  // Drawer unit on plinths (C3J): rail, bottom sits on plinths, 3 drawers.
+  FAMILIES.C3J = {
+    label: '3 drawer unit on plinth',
+    defaults: { w: 600, h: 760, d: 570, plinth: 100 },
+    build(o) {
+      const { w, h, d } = o;
+      const Wi = r1(w - 2 * T);
+      const backFront = r1(d - 36.2);
+      const panD = r1(backFront - FRONT);
+      const railJ = jointPositions(160, { narrow: true });
+      const pl = jointPositions(o.plinth);
+      const backH = h - o.plinth;
+      const backXs = backJointXs(backH, 'top');
+      const sideSpec = {
+        H: h, D: d, front: FRONT,
+        joints: [{ line: SIDE_LINE, jp: railJ, dowelDepth: 12 }],
+        backY: Math.round(backFront + BACK_LINE), backXs,
+        // ONE-SAMPLE: runner positions for this drawer unit
+        runners: o.runners || { xs: [177, 397, 602.8], ys: [37, 69, 261, 293] },
+        plinths: { xs: pl.cams.map((c) => r1(h - o.plinth + c)), ys: [12.2, r1(d - 109.2)] },
+      };
+      return [
+        sidePanel('L', sideSpec),
+        sidePanel('R', sideSpec),
+        backPanel(backH, Wi, { xs: backXs, screwBottom: backScrewPositions(Wi) }),
+        part('Rail', Wi, 160, horizontalPanelHoles(Wi, 160, railJ, true), { front: 'E', back: 'I' }, { role: 'rail' }),
+        part('Base', Wi, panD, [], { front: 'E' }, { role: 'base' }),
+        part('Plinth', Wi, o.plinth, horizontalPanelHoles(Wi, o.plinth, pl, false), { top: 'I', bottom: 'I' }, { role: 'plinth' }),
+        part('Plinth', Wi, o.plinth, horizontalPanelHoles(Wi, o.plinth, pl, false), { top: 'I', bottom: 'I' }, { role: 'plinth' }),
+      ];
+    },
+  };
+
+  // L-shaped corner base unit 900x900 (BCHL9X9). Fixed size, drilled as per job R04.
+  FAMILIES.BCHL = {
+    label: 'Corner base unit (L-shape)',
+    defaults: { w: 900, h: 720, d: 570, fixed: true },
+    build(o) {
+      const { h, d } = o;
+      const F = 3;                                   // corner panels sit 1mm further back
+      const legD = 498.8, L = 813.6;
+      const J = jointPositions(legD);
+      const backFront = r1(d - 68.2);
+      const backXs = backJointXs(h, 'top');
+      const sideSpec = {
+        H: h, D: d, front: F,
+        joints: [
+          { line: SIDE_LINE, jp: J, dowelDepth: 13 },
+          { line: h - SIDE_LINE, jp: J, dowelDepth: 13 },
+        ],
+        backY: Math.round(backFront + BACK_LINE), backXs,
+        shelves: { xs: shelfRows(h, 1), pins: 3, yFront: 105, yBack: r1(backFront - 30) },
+        hinges: [HINGE.endOffset, h - HINGE.endOffset], hingeOn: 'both',
+      };
+      const off = L - legD;                           // 314.8: where the side's front lands on the L
+      const camA = J.cams.map((c) => r1(legD - c)); // along x=0 edge (programmed from back)
+      const camB = J.cams.map((c) => r1(off + c));
+      const top = [];
+      for (const c of camA) top.push(V(CAM.inset, c, CAM.dia, CAM.depth));
+      for (const c of camB) top.push(V(c, L - CAM.inset, CAM.dia, CAM.depth));
+      for (const c of camA) top.push(H(0, c, 'XP'), H(0, r1(c - 32), 'XP'));
+      for (const c of camB) top.push(H(c, L, 'YM'), H(r1(c + 32), L, 'YM'));
+      const base = [];
+      const plates = [[745.8, 44.8], [400.8, 44.8], [400.8, 400.8], [745.8, 395.3], [745.8, 745.8], [395.3, 745.8], [44.8, 745.8], [44.8, 400.8]];
+      for (const [x, y] of plates) base.push(...legPlate(x, y));
+      for (const c of camB) base.push(V(CAM.inset, c, CAM.dia, CAM.depth), V(c, CAM.inset, CAM.dia, CAM.depth));
+      for (const c of camB) base.push(H(0, c, 'XP'), H(0, r1(c + 32), 'XP'), H(c, 0, 'YP'), H(r1(c + 32), 0, 'YP'));
+      const screws = backScrewPositions(L);
+      const top4 = screws.map((y) => r1(L - y)).reverse();
+      return [
+        sidePanel('L', sideSpec),
+        sidePanel('R', sideSpec),
+        backPanel(h, L, {
+          xs: backXs, edgeNear: false, screwTop: top4, screwBottom: screws,
+          centrePins: pinXs(shelfRows(h, 1), 3), centrePinY: 406.55, centrePinBM: 'LSL',
+        }),
+        backPanel(h, r1(L + T), {
+          xs: backXs, edgeFar: false, screwTop: top4, screwBottom: screws,
+          centrePins: pinXs(shelfRows(h, 1), 3), centrePinY: 407.05, centrePinBM: 'LSL',
+          extra: [100, 382, 670].map((x) => V(x, r1(L + T - BACK_LINE), SCREW.dia, SCREW.depth, 'LSL')),
+        }),
+        // L-shaped: the square notch is cut away (needed for nesting and the label drawing)
+        part('Top', L, L, top, {}, { role: 'top', notch: { x: legD, y: 0, w: off, h: off } }),
+        part('Base', L, L, base, {}, { role: 'base', notch: { x: 0, y: 0, w: off, h: off } }),
+      ];
+    },
+  };
+
+  // ---------- your own cabinet types (Cabinet library) ----------
+  /** hinge centres for a door of length len starting at start (from the top of the side) */
+  function hingesFor(len, start = 0) {
+    const n = len <= 900 ? 2 : len <= 1600 ? 3 : len <= 2000 ? 4 : 5;
+    const a = start + HINGE.endOffset, b = start + len - HINGE.endOffset;
+    return Array.from({ length: n }, (_, i) => r1(a + ((b - a) * i) / (n - 1)));
+  }
+  /** runner rows for n equal drawers, spread like the R04 3-drawer base (93 from the top, 52.2 from the bottom) */
+  function runnersFor(n, top, bottom) {
+    if (!n) return null;
+    const xs = n === 1 ? [top] : Array.from({ length: n }, (_, i) => r1(top + ((bottom - top) * i) / (n - 1)));
+    return { xs, ys: [19, 37, 165, 261] };
+  }
+
+  const CONSTRUCTIONS = {
+    base: 'Base unit: top rail, base on legs',
+    wall: 'Wall unit: top and bottom, hanging brackets',
+    tall: 'Tall unit: top and base on legs',
+    robe: 'Wardrobe: top, bottom on two plinths',
+    plinth: 'Base unit on two plinths: top rail',
+  };
+  const custom = {};
+
+  FAMILIES.CUSTOM = {
+    label: 'Your cabinet',
+    defaults: {},
+    build(o) {
+      const doors = o.doors || 'none';
+      const pair = doors === 'pair';
+      const base = Object.assign({}, o, { pair, hinge: o.hinge || 'L' });
+      if (o.construction === 'base') {
+        // internal drawers: a drawer cabinet behind the door(s), standing on the base, 32mm fillers each side
+        const internal = o.drawerType === 'internal' && o.drawers > 0 && doors !== 'none';
+        const extDr = !internal && o.drawers > 0;       // drawer unit: drawer fronts instead of doors
+        const room = o.h - 2 * T - 30;                  // under the rail, with a little clearance
+        const nInt = internal ? Math.max(1, Math.min(o.drawers, Math.floor(room / DRAWER.pitch))) : 0;
+        const unitTop = r1(o.h - T - nInt * DRAWER.pitch);
+        // with internal drawers: one adjustable shelf, half way between the rail and the drawer cabinet
+        const shelfRowsOverride = internal ? topGapRow(T, unitTop) : (!extDr ? evenRows(T, r1(o.h - T), o.shelves || 0) : null);
+        if (extDr) base.pair = false;
+        const parts = baseLike(Object.assign(base, { hingeXs: hingesFor(o.h) }), {
+          doors: doors !== 'none' && !extDr, shelves: !extDr ? o.shelves || 0 : 0,
+          shelfRows: shelfRowsOverride,
+          drawerRunners: extDr ? runnersFor(o.drawers, 93, o.h - 52.2) : null,
+        });
+        if (internal) {
+          const b = parts.find((p) => p.role === 'base');
+          parts.push(...internalDrawerUnit(b.L, b.W, nInt));
+        }
+        parts.meta = Object.assign(parts.meta || {}, { internal, nDr: internal ? nInt : o.drawers || 0, bottomTop: r1(o.h - T) });
+        return parts;
+      }
+      if (o.construction === 'wall') return FAMILIES.WM.build(Object.assign(base, { hingeXs: hingesFor(o.h), shelves: o.shelves || 0, shelfRows: evenRows(T, r1(o.h - T), o.shelves || 0) }));
+      if (o.construction === 'tall') return FAMILIES.LM.build(Object.assign(base, { hingeXs: hingesFor(o.h), shelves: o.shelves || 0, shelfRows: evenRows(T, r1(o.h - T), o.shelves || 0) }));
+      if (o.construction === 'robe') {
+        const p = o.support === 'legs' ? o.legH : (o.plinth || 100);
+        return FAMILIES.SHR.build(Object.assign(base, { plinth: o.plinth || 100, pair: doors === 'none' ? false : pair, hingeXs: hingesFor(o.h - p), drawers: o.drawers || 0, drawerType: o.drawerType }));
+      }
+      if (o.construction === 'plinth') {
+        const p = o.plinth || 100;
+        const parts = FAMILIES.C3J.build(Object.assign(base, { plinth: p, runners: runnersFor(o.drawers || 0, 177, o.h - p - 57.2) || { xs: [], ys: [] } }));
+        parts.meta = { rows: [], nDr: o.drawers || 0 };
+        return parts;
+      }
+      throw new Error('Unknown construction: ' + o.construction);
+    },
+  };
+
+  /** Add or replace your own cabinet types: [{code, name, construction, w, h, d, doors, hinge, shelves, drawers}] */
+  function setCustomCabinets(list) {
+    for (const k of Object.keys(custom)) delete custom[k];
+    for (const c of list || []) if (c && c.code) custom[String(c.code).toUpperCase().trim()] = c;
+  }
+  function customCabinets() { return Object.values(custom); }
+
+  /** catalogue code -> family + size, e.g. BHL600, WM1000, B3D600A, LM600, SHR2-800 */
+  function parseCode(code) {
+    const c = String(code).toUpperCase().trim();
+    if (custom[c]) return { family: 'CUSTOM', w: +custom[c].w, def: custom[c] };
+    let m;
+    if ((m = c.match(/^BHL(\d+)$/))) return { family: 'BHL', w: +m[1] };
+    if ((m = c.match(/^B3D(\d+)A?$/))) return { family: 'B3D', w: +m[1] };
+    if ((m = c.match(/^WM(\d+)$/))) return { family: 'WM', w: +m[1] };
+    if ((m = c.match(/^LM(\d+)$/))) return { family: 'LM', w: +m[1] };
+    if ((m = c.match(/^SHR2-(\d+)$/))) return { family: 'SHR', w: +m[1] };
+    if ((m = c.match(/^C3J-(\d+)$/))) return { family: 'C3J', w: +m[1] };
+    if ((m = c.match(/^BCHL9X9$/))) return { family: 'BCHL', w: 900 };
+    return null;
+  }
+
+  /** which drawing edge (y0 = Y 0 edge, yW, x0, xL) gets which edging, in program coordinates */
+  const EDGE_SIDES = {
+    lhEnd: { y0: 'E', yW: 'I', x0: 'I', xL: 'I' },
+    rhEnd: { yW: 'E', y0: 'I', x0: 'I', xL: 'I' },
+    back: { x0: 'I', xL: 'I' },
+    rail: { yW: 'E', y0: 'I' },
+    base: { y0: 'E' }, bottom: { y0: 'E' }, top: { yW: 'E' },
+    shelf: { y0: 'B', yW: 'I', x0: 'I', xL: 'I' },
+    plinth: { y0: 'I', yW: 'I' },
+    post: {},
+  };
+
+  function sanitizeCustom(c) {
+    const num = (v, lo, hi, dflt) => { const n = +v; return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : dflt; };
+    return {
+      construction: CONSTRUCTIONS[c.construction] ? c.construction : 'base',
+      w: num(c.w, 150, 1200, 600), h: num(c.h, 200, 2500, 720), d: num(c.d, 250, 700, 570),
+      doors: ['none', 'single', 'pair'].includes(c.doors) ? c.doors : 'none',
+      hinge: c.hinge === 'R' ? 'R' : 'L',
+      shelves: Math.round(num(c.shelves, 0, 8, 0)), drawers: Math.round(num(c.drawers, 0, 6, 0)),
+      plinth: num(c.plinth, 50, 200, 100),
+      drawerType: c.drawerType === 'internal' ? 'internal' : 'external',
+      support: c.support === 'legs' ? 'legs' : 'plinth',          // wardrobes: plinth or legs
+      legH: +c.legH === 150 ? 150 : 100,
+      floorGables: ['L', 'R', 'both'].includes(c.floorGables) ? c.floorGables : 'none',
+    };
+  }
+
+  /** Build one cabinet. opts may override w/h/d/shelves/hinge. */
+  function buildCabinet(code, opts = {}) {
+    const p = parseCode(code);
+    if (!p) throw new Error('Unknown cabinet code: ' + code);
+    const fam = FAMILIES[p.family];
+    const o = Object.assign({}, fam.defaults, p.def ? sanitizeCustom(p.def) : {}, { w: p.w }, opts);
+    const parts = fam.build(o);
+    for (const p of parts) {
+      if (!p.edgeSides) p.edgeSides = p.family === 'none' || (fam === FAMILIES.BCHL && (p.role === 'top' || p.role === 'base')) ? {} : (EDGE_SIDES[p.role] || {});
+    }
+    return { code, family: p.family, label: fam.label, options: o, parts, meta: parts.meta || {} };
+  }
+
+  /** Whole order -> numbered parts with program names, ready for labels/nesting/drilling */
+  function buildOrder(order) {
+    const job = order.job || 'R04';
+    const out = [];
+    let seq = 0;
+    order.cabinets.forEach((cab, i) => {
+      const built = buildCabinet(cab.code, cab.options || {});
+      built.parts.forEach((p, k) => {
+        seq++;
+        const id = String(seq).padStart(4, '0');
+        out.push(Object.assign({}, p, {
+          cabinetNumber: i + 1, cabinetCode: cab.code, room: cab.room || 'Room 1', job: order.name || 'Job',
+          partNumber: k + 1, id,
+          program: p.holes.length ? job.toLowerCase() + 'b' + id : '',
+          labelFile: job.toLowerCase() + 'p' + id,
+        }));
+      });
+    });
+    return out;
+  }
+
+  // ---------- WoodWOP .mpr writer (matches the Cabinet Vision post output) ----------
+  const fmt = (v) => String(r1(v));
+  function toMpr(p, opts = {}) {
+    const date = opts.date || new Date();
+    const d = date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }).replace(/ /g, ' ');
+    const L = [];
+    L.push('[H', 'VERSION="4.0 Alpha"', 'IN="0"', 'GX="0"', 'GY="0"', 'GXY="0"', 'UP="0"', 'FM="1"', 'FW="1000"', 'HS="0"', 'OP="0"');
+    L.push('[001', `L="${fmt(p.L)}"`, 'KM="Length"', `W="${fmt(p.W)}"`, 'KM="Width"', `T="${fmt(p.T)}"`, 'KM="Thickness"');
+    L.push('<100 \\WerkStck\\', 'LA="L"', 'BR="W"', 'DI="T"', 'FNX="0"', 'FNY="0"', 'AX="0"', 'AY="0"', 'RNX="0"', 'RNY="0"', 'RNZ="0"');
+    L.push('<101 \\Kommentar\\', `KM="Date: ${d}"`, `KM="File Name: ${(p.program || '').toUpperCase()}"`, 'KM=""', 'KM=""');
+    L.push('[K');
+    for (const h of p.holes) {
+      if (h.op === 'V') {
+        L.push('<102 \\BohrVert\\', `XA="${fmt(h.x)}"`, `YA="${fmt(h.y)}"`, `BM="${h.bm}"`, `TI="${fmt(h.depth)}"`,
+          `DU="${fmt(h.dia)}"`, 'AN="1"', 'MI="0"', 'AB="0"', 'MX="0"', 'MY="0"', 'MZ="0"');
+      } else {
+        L.push('<103 \\BohrHoriz\\', 'MI="0"', `XA="${fmt(h.x)}"`, `YA="${fmt(h.y)}"`, `ZA="${fmt(h.z)}"`, `DU="${fmt(h.dia)}"`,
+          `TI="${fmt(h.depth)}"`, `BM="${h.bm}"`, 'AN="1"', 'AB="0"', 'F_="STANDARD"', 'MX="0"', 'MY="0"', 'MZ="0"');
+      }
+    }
+    L.push('!');
+    return L.join('\r\n') + '\r\n';
+  }
+
+  const api = { T, EDGES, EDGE_SIDES, CONSTRUCTIONS, setCustomCabinets, customCabinets, sanitizeCustom, MATERIAL, FAMILIES, parseCode, buildCabinet, buildOrder, toMpr };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else root.EasyCabEngine = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/*
+ * Easy Cab labels
+ * ---------------
+ * Part labels (600 x 600 px, same layout as the Cabinet Vision labels the
+ * SOPH MSK2822A labeller prints) and the .pts label-position file per sheet.
+ *
+ * Barcode: Code 39, contents = program name in capitals (e.g. R04B0001),
+ * read off all 52 barcoded R04 labels. Parts with no drilling get no barcode.
+ *
+ * Works in the browser (window.EasyCabLabels) and in Node (module.exports).
+ */
+(function (root) {
+  'use strict';
+
+  // ---------- Code 39 ----------
+  // 9 elements per character (bar, space, bar ...), 1 = wide
+  const C39 = {
+    '0': '000110100', '1': '100100001', '2': '001100001', '3': '101100000', '4': '000110001',
+    '5': '100110000', '6': '001110000', '7': '000100101', '8': '100100100', '9': '001100100',
+    A: '100001001', B: '001001001', C: '101001000', D: '000011001', E: '100011000',
+    F: '001011000', G: '000001101', H: '100001100', I: '001001100', J: '000011100',
+    K: '100000011', L: '001000011', M: '101000010', N: '000010011', O: '100010010',
+    P: '001010010', Q: '000000111', R: '100000110', S: '001000110', T: '000010110',
+    U: '110000001', V: '011000001', W: '111000000', X: '010010001', Y: '110010000',
+    Z: '011010000', '-': '010000101', '.': '110000100', ' ': '011000100', '*': '010010100',
+    $: '010101000', '/': '010100010', '+': '010001010', '%': '000101010',
+  };
+
+  /** bars as [x, width] in narrow-module units, plus total width */
+  function code39Bars(text, ratio = 3) {
+    const s = '*' + String(text).toUpperCase() + '*';
+    const bars = [];
+    let x = 0;
+    for (let c = 0; c < s.length; c++) {
+      const p = C39[s[c]];
+      if (!p) throw new Error('Character not allowed in Code 39: ' + s[c]);
+      for (let i = 0; i < 9; i++) {
+        const w = p[i] === '1' ? ratio : 1;
+        if (i % 2 === 0) bars.push([x, w]);
+        x += w;
+      }
+      if (c < s.length - 1) x += 1; // inter-character gap
+    }
+    return { bars, width: x };
+  }
+
+  // ---------- where CV draws the edging markers on the label ----------
+  // (fixed per part type, read off the R04 labels; top/bottom/left/right of the drawing)
+  const LABEL_EDGES = {
+    lhEnd: { top: 'E', left: 'I', right: 'I', bottom: 'I' },
+    rhEnd: { top: 'E', left: 'I', right: 'I', bottom: 'I' },
+    back: { left: 'I', right: 'I' },
+    rail: { top: 'E', bottom: 'I' },
+    top: { bottom: 'E' },
+    base: { bottom: 'E' },
+    bottom: { top: 'E' },
+    shelf: { top: 'B', left: 'I', right: 'I', bottom: 'I' },
+    plinth: { top: 'I', bottom: 'I' },
+    post: {},
+  };
+
+  const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+  /**
+   * SVG for one label, 600 x 600 user units.
+   * part: from EasyCabEngine.buildOrder (needs name, partNumber, cabinetCode, cabinetNumber,
+   *       room, job, material, L, W, holes, role, program, noEdgeMarks?)
+   * opts.rotate: 0 | 90 | -90 (the labeller sometimes needs it turned to suit the nest)
+   * opts.edges: EDGES text map {E:'2MM Board Match E-Plain', ...}
+   */
+  function labelSvg(part, opts = {}) {
+    const EDG = opts.edges || { E: '2MM Board Match E-Plain', B: '2MM Board Match E-Plain', I: '0.8mm Board Match E-Plain' };
+    const noEdging = part.edgeSides && Object.keys(part.edgeSides).length === 0;
+    const marks = part.labelEdges || (noEdging ? {} : LABEL_EDGES[part.role] || {});
+    const codes = [];
+    for (const k of ['top', 'left', 'right', 'bottom']) if (marks[k] && !codes.includes(marks[k])) codes.push(marks[k]);
+    // CV lists 2mm first, then 0.8mm
+    codes.sort((a, b) => (a === 'I') - (b === 'I'));
+    const F = "font-family=\"Arial, 'Liberation Sans', Helvetica, sans-serif\"";
+    const o = [];
+    o.push(`<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">`);
+    o.push(`<g transform="${opts.rotate ? `rotate(${opts.rotate} 300 300)` : ''}">`);
+    o.push(`<rect width="600" height="600" fill="#fff"/>`);
+    // header block
+    const rows = [
+      ['Job:', part.job || 'Job', 88, true],
+      ['Room:', part.room || 'Room 1', 122],
+      ['Cab:', part.cabinetCode, 122],
+      ['Part:', `${part.partNumber}: ${part.name}`, 122],
+      ['Material:', part.material, 160],
+    ];
+    rows.forEach(([k, v, vx, italic], i) => {
+      const y = 25 + i * 24;
+      o.push(`<text x="48" y="${y}" ${F} font-size="19" fill="#000">${esc(k)}</text>`);
+      o.push(`<text x="${vx}" y="${y}" ${F} font-size="19" fill="#000"${italic ? ' font-style="italic"' : ''}>${esc(v)}</text>`);
+    });
+    o.push(`<text x="48" y="145" ${F} font-size="19" fill="#000">Edging</text>`);
+    codes.forEach((c, i) => {
+      o.push(`<text x="160" y="${i === 0 ? 146 : 202}" ${F} font-size="21" fill="#000">${esc(c + ': ' + EDG[c])}</text>`);
+    });
+    // grain arrow
+    if (part.grain !== false) {
+      o.push(`<circle cx="82" cy="243" r="73" fill="none" stroke="#000" stroke-width="1.3"/>`);
+      o.push(`<path d="M82 312 V176 M82 176 L36 224 M82 176 L128 224" fill="none" stroke="#000" stroke-width="1.3"/>`);
+    }
+    // part drawing (machine coordinates, Y up)
+    const boxW = 190, boxH = 190, cx = 187, cy = 400;
+    const s = Math.min(boxW / part.L, boxH / part.W);
+    const w = part.L * s, h = part.W * s;
+    const x0 = cx - w / 2, y0 = cy - h / 2;
+    const X = (x) => x0 + x * s, Y = (y) => y0 + h - y * s;
+    o.push(`<text x="${(x0 + w / 2).toFixed(1)}" y="${Math.min(292, y0 - 10).toFixed(1)}" ${F} font-size="31" text-anchor="middle" fill="#000">${esc(trim(part.L))}</text>`);
+    o.push(`<text x="0" y="0" ${F} font-size="31" text-anchor="middle" fill="#000" transform="translate(78 ${cy}) rotate(-90)">${esc(trim(part.W))}</text>`);
+    if (part.notch) {
+      // L-shaped panel: outline without the notch, as in the CV drawing
+      const n = part.notch;
+      const pts = n.x === 0
+        ? [[n.w, 0], [part.L, 0], [part.L, part.W], [0, part.W], [0, n.h], [n.w, n.h]]
+        : [[0, 0], [n.x, 0], [n.x, n.h], [part.L, n.h], [part.L, part.W], [0, part.W]];
+      o.push(`<polygon points="${pts.map(([a, b]) => X(a).toFixed(1) + ',' + Y(b).toFixed(1)).join(' ')}" fill="none" stroke="#000" stroke-width="1.2"/>`);
+      o.push(`<rect x="${X(n.x).toFixed(1)}" y="${Y(n.y + n.h).toFixed(1)}" width="${(n.w * s).toFixed(1)}" height="${(n.h * s).toFixed(1)}" fill="none" stroke="#777" stroke-width="0.8"/>`);
+    } else {
+      o.push(`<rect x="${x0.toFixed(1)}" y="${y0.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" fill="none" stroke="#000" stroke-width="1.2"/>`);
+    }
+    for (const r of part.routes || []) {
+      // holes routed on the nesting machine (e.g. hanging-bracket access in wall-unit backs): CV draws a cross
+      const px = X(r.x), py = Y(r.y), k = 5;
+      o.push(`<path d="M${(px - k).toFixed(1)} ${(py - k).toFixed(1)} L${(px + k).toFixed(1)} ${(py + k).toFixed(1)} M${(px - k).toFixed(1)} ${(py + k).toFixed(1)} L${(px + k).toFixed(1)} ${(py - k).toFixed(1)}" stroke="#000" stroke-width="1.2"/>`);
+    }
+    for (const hole of part.holes || []) {
+      if (hole.op === 'V') {
+        if (hole.dia >= 15) {
+          // CV draws connector housings as a short mark from the joint edge
+          const left = hole.x < part.L / 2;
+          const xe = left ? X(0) : X(part.L);
+          o.push(`<line x1="${xe.toFixed(1)}" y1="${Y(hole.y).toFixed(1)}" x2="${(xe + (left ? 5 : -5)).toFixed(1)}" y2="${Y(hole.y).toFixed(1)}" stroke="#000" stroke-width="2.2"/>`);
+        } else {
+          o.push(`<rect x="${(X(hole.x) - 0.8).toFixed(1)}" y="${(Y(hole.y) - 0.8).toFixed(1)}" width="1.6" height="1.6" fill="#000"/>`);
+        }
+      } else {
+        const len = Math.max(4, hole.depth * s);
+        let a, b;
+        if (hole.bm === 'XP') { a = [X(0), Y(hole.y)]; b = [X(0) + len, Y(hole.y)]; }
+        else if (hole.bm === 'XM') { a = [X(part.L), Y(hole.y)]; b = [X(part.L) - len, Y(hole.y)]; }
+        else if (hole.bm === 'YP') { a = [X(hole.x), Y(0)]; b = [X(hole.x), Y(0) - len]; }
+        else { a = [X(hole.x), Y(part.W)]; b = [X(hole.x), Y(part.W) + len]; }
+        o.push(`<line x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" x2="${b[0].toFixed(1)}" y2="${b[1].toFixed(1)}" stroke="#000" stroke-width="1"/>`);
+      }
+    }
+    const mark = (mx, my, c) => {
+      o.push(`<circle cx="${mx.toFixed(1)}" cy="${my.toFixed(1)}" r="7" fill="#fff" stroke="#000" stroke-width="1"/>`);
+      o.push(`<text x="${mx.toFixed(1)}" y="${(my + 4).toFixed(1)}" ${F} font-size="11" text-anchor="middle" fill="#000">${c}</text>`);
+    };
+    if (marks.top) mark(x0 + w / 2, y0, marks.top);
+    if (marks.bottom) mark(x0 + w / 2, y0 + h, marks.bottom);
+    if (marks.left) mark(x0, cy, marks.left);
+    if (marks.right) mark(x0 + w, cy, marks.right);
+    // right-hand block
+    o.push(`<text x="336" y="294" ${F} font-size="32" fill="#000">Cabinet number:</text>`);
+    o.push(`<text x="455" y="384" ${F} font-size="68" text-anchor="middle" fill="#000">${esc(part.cabinetNumber)}</text>`);
+    o.push(`<text x="320" y="452" ${F} font-size="32" fill="#000">Program Name:</text>`);
+    if (part.program) {
+      o.push(`<text x="435" y="497" ${F} font-size="32" text-anchor="middle" fill="#000">${esc(part.program)}</text>`);
+      const bc = code39Bars(part.program);
+      const unit = Math.min(3, 482 / bc.width);
+      const bx = 48 + (482 - bc.width * unit) / 2;
+      o.push(`<g fill="#000">` + bc.bars.map(([x, wd]) => `<rect x="${(bx + x * unit).toFixed(2)}" y="525" width="${(wd * unit).toFixed(2)}" height="66"/>`).join('') + `</g>`);
+    }
+    o.push(`</g></svg>`);
+    return o.join('');
+  }
+
+  function trim(v) { return String(Math.round(v * 100) / 100); }
+
+  // ---------- .pts: label positions on one sheet ----------
+  /**
+   * points: [{x, y}] in the labeller's sheet coordinates (mm, as in your files: both negative)
+   * Returns the file text exactly as Cabinet Vision writes it (CRLF, 3 decimals, N9999 end).
+   */
+  function toPts(points) {
+    const L = ['N0000', String(points.length)];
+    points.forEach((p, i) => {
+      L.push('N' + String(i + 1).padStart(4, '0'));
+      L.push(`X${p.x.toFixed(3)} Y${p.y.toFixed(3)}`);
+    });
+    L.push('N9999');
+    return L.join('\r\n') + '\r\n';
+  }
+
+  function parsePts(text) {
+    const lines = text.replace(/\r/g, '').split('\n').filter(Boolean);
+    const pts = [];
+    for (const l of lines) {
+      const m = l.match(/^X(-?[\d.]+) Y(-?[\d.]+)$/);
+      if (m) pts.push({ x: +m[1], y: +m[2] });
+    }
+    return pts;
+  }
+
+  /** sheet program name as used on the nesting machine: job + material + sheet + N, e.g. R040101N */
+  function sheetName(job, material, sheet) {
+    return String(job).toUpperCase() + String(material).padStart(2, '0') + String(sheet).padStart(2, '0') + 'N';
+  }
+  /** label image file names: one per part (r04p0001.jpg) and one per sheet position (R040101N_0001.jpg) */
+  const partLabelFile = (job, id) => String(job).toLowerCase() + 'p' + id + '.jpg';
+  const sheetLabelFile = (sheet, n) => sheet + '_' + String(n).padStart(4, '0') + '.jpg';
+
+  const api = { code39Bars, labelSvg, toPts, parsePts, sheetName, partLabelFile, sheetLabelFile, LABEL_EDGES };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else root.EasyCabLabels = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/*
+ * Easy Cab nesting
+ * ----------------
+ * Lays the parts of an order out on full sheets and writes, per sheet:
+ *   - the cutting program for the SOPH MSK2822A (Syntec G-code, same header,
+ *     tool, feeds, depths and lead-in ramps as the Cabinet Vision post: R0401xxN.NC)
+ *   - the .pts label positions (one point per part, same order as the sheet labels)
+ *
+ * Rules read off job R04 (R040101N..R040105N):
+ *   sheet 2800 x 2070 x 18.2, parts start 18mm in from the origin corner,
+ *   15mm between parts (12mm router + 3mm), parts may be turned 90 degrees,
+ *   12mm flat router T1, S22000, ramp-in F5000, cut F30000,
+ *   narrow parts (70-100mm) get a first pass to 16.7mm deep so they stay put,
+ *   then every part is cut through at board thickness,
+ *   wall-unit backs get two 18mm router holes 83mm from the top end, 18mm in from each side,
+ *   the label sits in the middle of the part's length, 38mm in from a long edge.
+ *
+ * Machine coordinates are negative: X = -(along 2800), Y = -(along 2070).
+ *
+ * Works in the browser (window.EasyCabNest) and in Node (module.exports).
+ */
+(function (root) {
+  const DEFAULTS = {
+    sheetL: 2800, sheetW: 2070,     // along machine X, along machine Y
+    margin: 18,                     // parts start this far in from the origin edges
+    farMargin: 11.2,                // and stay this far from the other two edges
+    gap: 15,                        // between parts
+    tool: 12,                       // router diameter
+    rotate: true,                   // allow parts to be turned 90 degrees (plain boards)
+    labelW: 102, labelD: 76,
+    tabDepth: 16.7,                 // first pass depth for narrow parts
+    narrow: 100,                    // parts this narrow or less get the first pass
+  };
+
+  const r3 = (v) => Math.round(v * 1000) / 1000;
+  const nc = (v) => { const n = r3(v); return Number.isInteger(n) ? n + '.' : String(n); };
+
+  // ---------------------------------------------------------------- packing (MaxRects)
+  function packSheets(items, binW, binH, heuristic, order) {
+    let rest = items.slice().sort(order);
+    const sheets = [];
+    while (rest.length) {
+      let free = [{ x: 0, y: 0, w: binW, h: binH }];
+      const placed = [];
+      for (;;) {
+        let best = null;
+        for (const it of rest) {
+          const opts = [[it.w, it.h, false]];
+          if (it.canRotate && it.w !== it.h) opts.push([it.h, it.w, true]);
+          for (const [w, h, rot] of opts) {
+            for (const f of free) {
+              if (w > f.w + 1e-6 || h > f.h + 1e-6) continue;
+              const s = score(heuristic, f, w, h);
+              if (!best || s[0] < best.s[0] - 1e-9 || (Math.abs(s[0] - best.s[0]) < 1e-9 && s[1] < best.s[1])) {
+                best = { it, w, h, rot, x: f.x, y: f.y, s };
+              }
+            }
+          }
+        }
+        if (!best) break;
+        placed.push(best);
+        rest = rest.filter((r) => r !== best.it);
+        free = splitFree(free, { x: best.x, y: best.y, w: best.w, h: best.h });
+      }
+      if (!placed.length) throw new Error('Part too big for the sheet: ' + rest[0].part.name + ' ' + rest[0].part.L + ' x ' + rest[0].part.W);
+      placed.free = free;
+      sheets.push(placed);
+    }
+    return sheets;
+  }
+  function score(h, f, w, hh) {
+    const dw = f.w - w, dh = f.h - hh;
+    if (h === 'bssf') return [Math.min(dw, dh), Math.max(dw, dh)];
+    if (h === 'baf') return [f.w * f.h - w * hh, Math.min(dw, dh)];
+    if (h === 'cols') return [f.x + w, f.y];                  // fill from the origin end, leave a full-width strip at the far end
+    return [f.y + hh, f.x];                                   // bottom-left
+  }
+  function splitFree(free, r) {
+    const out = [];
+    for (const f of free) {
+      if (r.x >= f.x + f.w || r.x + r.w <= f.x || r.y >= f.y + f.h || r.y + r.h <= f.y) { out.push(f); continue; }
+      if (r.x > f.x) out.push({ x: f.x, y: f.y, w: r.x - f.x, h: f.h });
+      if (r.x + r.w < f.x + f.w) out.push({ x: r.x + r.w, y: f.y, w: f.x + f.w - r.x - r.w, h: f.h });
+      if (r.y > f.y) out.push({ x: f.x, y: f.y, w: f.w, h: r.y - f.y });
+      if (r.y + r.h < f.y + f.h) out.push({ x: f.x, y: r.y + r.h, w: f.w, h: f.y + f.h - r.y - r.h });
+    }
+    // drop rectangles contained in others
+    return out.filter((a, i) => a.w > 0.01 && a.h > 0.01 && !out.some((b, j) => j !== i &&
+      a.x >= b.x && a.y >= b.y && a.x + a.w <= b.x + b.w && a.y + a.h <= b.y + b.h && (j < i || a.w !== b.w || a.h !== b.h || a.x !== b.x || a.y !== b.y)));
+  }
+
+  /**
+   * parts: output of EasyCabEngine.buildOrder (each has id, L, W, T, material, ...)
+   * Returns [{ name, material, materialNo, sheetNo, T, placements:[{part, u0,v0,u1,v1, along:'u'|'v'}] }]
+   */
+  function nestOrder(parts, opts = {}) {
+    const o = Object.assign({}, DEFAULTS, opts);
+    const job = String(o.job || 'R00').toUpperCase();
+    const groups = new Map();
+    for (const p of parts) {
+      const key = (p.material || 'Board') + '|' + (p.T || 18.2);
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(p);
+    }
+    const binW = o.sheetL - o.margin - o.farMargin + o.gap;
+    const binH = o.sheetW - o.margin - o.farMargin + o.gap;
+    const orders = [
+      (a, b) => b.w * b.h - a.w * a.h,
+      (a, b) => Math.max(b.w, b.h) - Math.max(a.w, a.h),
+      (a, b) => (b.w + b.h) - (a.w + a.h),
+    ];
+    const out = [];
+    let materialNo = 0;
+    for (const [key, list] of groups) {
+      materialNo++;
+      const items = list.map((part) => ({ part, w: part.L + o.gap, h: part.W + o.gap, canRotate: o.rotate && part.grain !== true }));
+      let best = null;
+      for (const h of ['bssf', 'baf', 'bl']) for (const ord of orders) {
+        const sh = packSheets(items, binW, binH, h, ord);
+        // fewest sheets, then the emptiest last sheet (more usable offcut)
+        const last = sh[sh.length - 1].reduce((s, p) => s + p.w * p.h, 0);
+        const k = [sh.length, last];
+        if (!best || k[0] < best.k[0] || (k[0] === best.k[0] && k[1] < best.k[1])) best = { sh, k };
+      }
+      // last sheet: re-pack its parts to leave the biggest single offcut for the next job in this colour
+      const lastIdx = best.sh.length - 1;
+      const lastItems = best.sh[lastIdx].map((pl) => pl.it);
+      let keep = { sh: best.sh[lastIdx], off: biggest(best.sh[lastIdx].free) };
+      for (const h of ['cols', 'bl', 'bssf', 'baf']) for (const ord of orders) {
+        const one = packSheets(lastItems, binW, binH, h, ord);
+        if (one.length !== 1) continue;
+        const off = biggest(one[0].free);
+        if (off.area > keep.off.area + 1) keep = { sh: one[0], off };
+      }
+      best.sh[lastIdx] = keep.sh;
+      best.sh.forEach((placed, i) => {
+        const name = (opts.sheetName || defaultSheetName)(job, materialNo, i + 1);
+        out.push({
+          name, material: key.split('|')[0], T: +key.split('|')[1], materialNo, sheetNo: i + 1,
+          sheetL: o.sheetL, sheetW: o.sheetW,
+          offcut: offcutOf(biggest(placed.free), binW, binH, o),
+          placements: placed.map((pl) => {
+            const u0 = r3(o.margin + pl.x), v0 = r3(o.margin + pl.y);
+            const u1 = r3(u0 + pl.w - o.gap), v1 = r3(v0 + pl.h - o.gap);
+            return { part: pl.it.part, u0, v0, u1, v1, along: pl.rot ? 'v' : 'u' };
+          }),
+        });
+      });
+    }
+    return out;
+  }
+  function biggest(free) {
+    let b = { area: 0 };
+    for (const f of free || []) if (f.w * f.h > b.area) b = { x: f.x, y: f.y, w: f.w, h: f.h, area: f.w * f.h };
+    return b;
+  }
+  /** the free area as real board left after cutting (sheet coordinates), or null if it is too small to keep */
+  function offcutOf(f, binW, binH, o) {
+    if (!f || !f.area) return null;
+    const u0 = f.x <= 1e-6 ? 0 : o.margin + f.x - o.gap + o.tool;
+    const v0 = f.y <= 1e-6 ? 0 : o.margin + f.y - o.gap + o.tool;
+    const u1 = f.x + f.w >= binW - 1e-6 ? o.sheetL : o.margin + f.x + f.w - o.gap;
+    const v1 = f.y + f.h >= binH - 1e-6 ? o.sheetW : o.margin + f.y + f.h - o.gap;
+    const L = Math.floor(u1 - u0), W = Math.floor(v1 - v0);
+    if (Math.min(L, W) < 200) return null;
+    return { u0: r3(u0), v0: r3(v0), L, W };
+  }
+  const defaultSheetName = (job, m, s) => job + String(m).padStart(2, '0') + String(s).padStart(2, '0') + 'N';
+
+  // ------------------------------------------------- part frame -> sheet (u along 2800, v along 2070)
+  // A proper rotation (no mirror): length along u -> turned 180; length along v -> turned 90.
+  function toSheet(pl, x, y) {
+    if (pl.along === 'u') return [pl.u1 - x, pl.v1 - y];
+    return [pl.u1 - y, pl.v0 + x];
+  }
+  function outline(part) {
+    const { L, W } = part;
+    const n = part.notch;
+    if (!n) return [[0, 0], [L, 0], [L, W], [0, W]];
+    // square L-shape: one corner rectangle removed
+    const pts = [];
+    const corners = [[0, 0], [L, 0], [L, W], [0, W]];
+    for (const [cx, cy] of corners) {
+      const inX = cx >= n.x - 1e-6 && cx <= n.x + n.w + 1e-6, inY = cy >= n.y - 1e-6 && cy <= n.y + n.h + 1e-6;
+      if (!(inX && inY)) { pts.push([cx, cy]); continue; }
+      // replace this corner by the three notch points, keeping the walk order
+      const nx = cx === 0 ? n.x + n.w : n.x, ny = cy === 0 ? n.y + n.h : n.y;
+      const prev = pts.length ? pts[pts.length - 1] : corners[3];
+      const a = (prev[1] === cy) ? [nx, cy] : [cx, ny];
+      const b = [nx, ny];
+      const c = (prev[1] === cy) ? [cx, ny] : [nx, cy];
+      pts.push(a, b, c);
+    }
+    return pts;
+  }
+  const area = (P) => P.reduce((s, p, i) => { const q = P[(i + 1) % P.length]; return s + p[0] * q[1] - q[0] * p[1]; }, 0) / 2;
+
+  /** outward offset of a rectilinear polygon (mitred corners, as the CV toolpaths) */
+  function offsetRect(P, d) {
+    if (area(P) < 0) P = P.slice().reverse();               // make it counter-clockwise
+    const n = P.length, lines = [];
+    for (let i = 0; i < n; i++) {
+      const a = P[i], b = P[(i + 1) % n];
+      const dx = Math.sign(b[0] - a[0]), dy = Math.sign(b[1] - a[1]);
+      lines.push({ a, b, nx: dy, ny: -dx });                 // outward normal for a CCW polygon
+    }
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      const l1 = lines[(i + n - 1) % n], l2 = lines[i];
+      const p = P[i];
+      out.push([p[0] + (l1.nx + l2.nx) * d, p[1] + (l1.ny + l2.ny) * d]);
+    }
+    return out;
+  }
+
+  // ---------------------------------------------------------------- G-code
+  const HEADER = [
+    '%',
+    'M8 (Main Spindle UP)',
+    'M176 (Dust Hood UP)',
+    'M85 (Vacuum Suction Open)',
+    'G04X1000',
+    'G0 G17 G40 G49 G80 G90',
+    'G0 G53 Z0',
+    'M7 (DRILL UNIT UP)',
+    'G54',
+    'T1 (SOPH 12MM FLAT ROUTER)',
+    'G43 H1',
+    'M3 S22000',
+    'M9 (ROUTER HD DOWN)',
+    'M175 (HOOD DOWN)',
+  ];
+  const FOOTER = ['//(Program End)', 'M45 (Main spindle stop and Dust hood lift)', 'G0 G53 Z0', 'G49', '%'];
+
+  /** one closed contour (machine XY, any orientation) cut counter-clockwise with a ramp in the middle of the longest edge */
+  function contour(L, XY, depth, ramp) {
+    if (area(XY) < 0) XY = XY.slice().reverse();
+    const n = XY.length;
+    let k = 0, best = -1, bestY = -Infinity, bestX = -Infinity;
+    for (let i = 0; i < n; i++) {
+      const a = XY[i], b = XY[(i + 1) % n], len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      // longest edge; on a tie the upper one, then the one on the right (as CV)
+      const my = (a[1] + b[1]) / 2, mx = (a[0] + b[0]) / 2;
+      if (len > best + 1e-6 || (Math.abs(len - best) <= 1e-6 && (my > bestY + 1e-6 || (Math.abs(my - bestY) <= 1e-6 && mx > bestX)))) { best = len; k = i; bestY = my; bestX = mx; }
+    }
+    const a = XY[k], b = XY[(k + 1) % n];
+    const ux = (b[0] - a[0]) / best, uy = (b[1] - a[1]) / best;
+    const rl = Math.min(ramp, best / 2 - 14);                // keep the ramp on the edge
+    const mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    const s = [mid[0] - ux * rl, mid[1] - uy * rl];
+    const pt = (p, extra = '') => {
+      const parts = [];
+      if (Math.abs(p[0] - cur[0]) > 1e-6) parts.push('X' + nc(p[0]));
+      if (Math.abs(p[1] - cur[1]) > 1e-6) parts.push('Y' + nc(p[1]));
+      cur = p;
+      return parts.join(' ') + extra;
+    };
+    let cur = [NaN, NaN];
+    L.push('G0 X' + nc(s[0]) + ' Y' + nc(s[1]));
+    cur = s;
+    if (!L.atSafe) L.push('G0 Z25.');
+    L.push('G0 Z5.');
+    L.push('G1 ' + pt(mid, ' Z' + nc(-depth) + ' F5000'));
+    let first = true;
+    for (let i = 1; i <= n; i++) {
+      const p = XY[(k + i) % n];
+      L.push('G1 ' + pt(p, first ? ' F30000' : ''));
+      first = false;
+    }
+    L.push('G1 ' + pt(mid));
+    const over = [mid[0] + ux * 12, mid[1] + uy * 12];
+    L.push('G1 ' + pt(over));
+    L.push('G1 ' + pt([over[0] + ux * rl, over[1] + uy * rl], ' Z5.'));
+    L.push('G0 Z25.');
+    L.atSafe = true;
+  }
+
+  /** round hole bigger than the router, cut as in CV (plunge in the centre, arc lead-in, full circle) */
+  function hole(L, X, Y, dia, depth, tool) {
+    const rp = dia / 2 - tool / 2;
+    if (rp <= 0.05) {                                         // router-sized: plain plunge
+      L.push('G0 X' + nc(X) + ' Y' + nc(Y)); if (!L.atSafe) L.push('G0 Z25.'); L.push('G0 Z5.');
+      L.push('G1 Z' + nc(-depth) + ' F5000'); L.push('G0 Z25.'); L.atSafe = true;
+      return;
+    }
+    const P = (a, b) => 'X' + nc(X + a * rp) + ' Y' + nc(Y + b * rp);
+    L.push('G0 ' + P(-0.3307, -0.935));
+    if (!L.atSafe) L.push('G0 Z25.');
+    L.push('G0 Z5.');
+    L.push('G1 X' + nc(X) + ' Y' + nc(Y) + ' Z' + nc(-depth) + ' F5000');
+    L.push('G2 ' + P(1 / 3, 0.9428) + ' R' + nc(rp * 1.5) + ' F30000');
+    L.push('G2 ' + P(0.65, -0.76) + ' R' + nc(rp));
+    L.push('G2 ' + P(-0.9833, -0.1827) + ' R' + nc(rp));
+    L.push('G2 ' + P(1 / 3, 0.9428) + ' R' + nc(rp));
+    L.push('G0 Z25.');
+    L.atSafe = true;
+  }
+
+  /** order of cutting: holes, first pass of narrow parts, then all parts (smallest first, biggest last) */
+  function cutOrder(sheet, o) {
+    const pls = sheet.placements.slice();
+    pls.sort((a, b) => (a.part.L * a.part.W) - (b.part.L * b.part.W));
+    return pls;
+  }
+
+  function toNC(sheet, opts = {}) {
+    const o = Object.assign({}, DEFAULTS, opts);
+    const T = sheet.T;
+    const R = o.tool / 2;
+    const L = [
+      '//' + sheet.name,
+      `//DX=${nc(sheet.sheetW)}DY=${nc(sheet.sheetL)}DZ=${nc(T)}`,
+      '//MATERIAL : ' + sheet.material,
+      '//TEXTURE:',
+      `//LABELWIDTH:${o.labelW}LABELDEPTH:${o.labelD}`,
+    ].concat(HEADER);
+    const order = cutOrder(sheet, o);
+    // 1. router holes (before anything is cut free)
+    for (const pl of order) for (const h of pl.part.routes || []) {
+      const [u, v] = toSheet(pl, h.x, h.y);
+      hole(L, -u, -v, h.dia, T, o.tool);
+    }
+    // 2. first pass on narrow parts
+    for (const pl of order) {
+      if (Math.min(pl.part.L, pl.part.W) > o.narrow) continue;
+      contour(L, path(pl, R), o.tabDepth, 2 * (o.tabDepth + 5));
+    }
+    // 3. through cut
+    for (const pl of order) contour(L, path(pl, R), T, 2 * T);
+    return L.concat(FOOTER).join('\r\n') + '\r\n';
+  }
+  function path(pl, R) {
+    const P = outline(pl.part).map(([x, y]) => toSheet(pl, x, y));
+    return offsetRect(P, R).map(([u, v]) => [-u, -v]);
+  }
+
+  /** label points (machine coordinates) in the same order as the sheet label images */
+  function labelPoints(sheet, opts = {}) {
+    const o = Object.assign({}, DEFAULTS, opts);
+    return cutOrder(sheet, o).map((pl) => {
+      const [u, v] = toSheet(pl, pl.part.L / 2, o.labelD / 2);
+      return { x: -u, y: -v, part: pl.part };
+    });
+  }
+
+  /** small SVG of a sheet layout, for previews */
+  function sheetSvg(sheet, opts = {}) {
+    const o = Object.assign({}, DEFAULTS, opts);
+    const s = (opts.width || 700) / sheet.sheetL;
+    const k = (opts.width || 700) / 700;              // text and line sizes grow with the drawing
+    const W = sheet.sheetL * s, H = sheet.sheetW * s;
+    const out = [`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W.toFixed(1)} ${H.toFixed(1)}" width="${W.toFixed(0)}" height="${H.toFixed(0)}" font-family="Arial,Helvetica,sans-serif">`];
+    out.push(`<rect x="0" y="0" width="${W.toFixed(1)}" height="${H.toFixed(1)}" fill="#efe9df" stroke="#888"/>`);
+    if (sheet.offcut) {
+      const c = sheet.offcut;
+      out.push(`<rect x="${(c.u0 * s).toFixed(1)}" y="${(c.v0 * s).toFixed(1)}" width="${(c.L * s).toFixed(1)}" height="${(c.W * s).toFixed(1)}" fill="#dfe8d3" stroke="#6b8a4e" stroke-dasharray="4 3"/>`);
+      out.push(`<text x="${((c.u0 + c.L / 2) * s).toFixed(1)}" y="${((c.v0 + c.W / 2) * s + 4).toFixed(1)}" font-size="12" text-anchor="middle" fill="#3f5a2a">offcut ${c.L} × ${c.W}</text>`);
+    }
+    const pts = labelPoints(sheet, o);
+    pts.forEach((lp, i) => {
+      const pl = sheet.placements.find((q) => q.part === lp.part);
+      const P = outline(pl.part).map(([x, y]) => toSheet(pl, x, y));
+      out.push(`<polygon points="${P.map(([u, v]) => (u * s).toFixed(1) + ',' + (v * s).toFixed(1)).join(' ')}" fill="#fff" stroke="#333" stroke-width="0.8"/>`);
+      for (const h of pl.part.routes || []) {
+        const [u, v] = toSheet(pl, h.x, h.y);
+        out.push(`<circle cx="${(u * s).toFixed(1)}" cy="${(v * s).toFixed(1)}" r="${Math.max(1.5, h.dia / 2 * s).toFixed(1)}" fill="none" stroke="#333" stroke-width="0.6"/>`);
+      }
+      if (opts.holes) {
+        // drilling from the boring program, shown on the part where it lies on the sheet
+        for (const h of pl.part.holes || []) {
+          const [u, v] = toSheet(pl, h.x, h.y);
+          if (h.op === 'V') {
+            const col = h.dia >= 15 ? '#1f5fa8' : h.dia >= 8 ? '#2f8a4a' : h.bm === 'LSL' ? '#8a5a1f' : '#555';
+            out.push(`<circle cx="${(u * s).toFixed(2)}" cy="${(v * s).toFixed(2)}" r="${Math.max(0.7, h.dia / 2 * s).toFixed(2)}" fill="${h.dia >= 15 ? 'none' : col}" stroke="${col}" stroke-width="${h.dia >= 15 ? (1.2 * k).toFixed(2) : 0}"/>`);
+          } else {
+            const d = { XP: [1, 0], XM: [-1, 0], YP: [0, 1], YM: [0, -1] }[h.bm] || [0, 0];
+            const [u2, v2] = toSheet(pl, h.x + d[0] * h.depth, h.y + d[1] * h.depth);
+            out.push(`<line x1="${(u * s).toFixed(2)}" y1="${(v * s).toFixed(2)}" x2="${(u2 * s).toFixed(2)}" y2="${(v2 * s).toFixed(2)}" stroke="#c0392b" stroke-width="${Math.max(0.8, h.dia * s).toFixed(2)}"/>`);
+          }
+        }
+      }
+      const lu = -lp.x * s, lv = -lp.y * s;
+      const lw = (pl.along === 'u' ? o.labelW : o.labelD) * s, lh = (pl.along === 'u' ? o.labelD : o.labelW) * s;
+      out.push(`<rect x="${(lu - lw / 2).toFixed(1)}" y="${(lv - lh / 2).toFixed(1)}" width="${lw.toFixed(1)}" height="${lh.toFixed(1)}" fill="#f4c542" opacity="${opts.holes ? 0.45 : 0.8}"/>`);
+      const cu = (pl.u0 + pl.u1) / 2 * s, cv = (pl.v0 + pl.v1) / 2 * s;
+      const fs = Math.max(7 * k, Math.min(13 * k, Math.min(pl.u1 - pl.u0, pl.v1 - pl.v0) * s / 2.4));
+      if (opts.holes) out.push(`<circle cx="${cu.toFixed(1)}" cy="${(cv - fs * 0.35).toFixed(1)}" r="${(fs * 0.85).toFixed(1)}" fill="#fff" stroke="#222" stroke-width="${k.toFixed(2)}"/>`);
+      out.push(`<text x="${cu.toFixed(1)}" y="${(cv + fs / 3 - (opts.holes ? fs * 0.35 : 0)).toFixed(1)}" font-size="${fs.toFixed(1)}" font-weight="${opts.holes ? 700 : 400}" text-anchor="middle" fill="#222">${i + 1}</text>`);
+    });
+    out.push('</svg>');
+    return out.join('');
+  }
+
+  const api = { DEFAULTS, nestOrder, toNC, labelPoints, sheetSvg, outline, toSheet };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else root.EasyCabNest = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+const E = window.EasyCabEngine, LB = window.EasyCabLabels, NE = window.EasyCabNest;
+const $ = id => document.getElementById(id);
+const esc = v => String(v ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const money = n => '£' + (Math.round((+n || 0) * 100) / 100).toLocaleString('en-GB', {minimumFractionDigits:2, maximumFractionDigits:2});
+const VAT = 0.2;
+const CATS = ['Base units','Drawer units','Wall units','Tall units','Wardrobes','Corner units'];
+const CON_DEFAULTS = { base:{h:720,d:570,doors:'single',shelves:1,drawers:0}, wall:{h:720,d:300,doors:'single',shelves:2,drawers:0}, tall:{h:1970,d:570,doors:'single',shelves:5,drawers:0}, robe:{h:2120,d:570,doors:'pair',shelves:1,drawers:0,drawerType:'external',support:'plinth',floorGables:'none'}, plinth:{h:760,d:570,doors:'none',shelves:0,drawers:3} };
+// standard cabinets: drilled exactly as in job R04 (Cabinet Vision)
+const STANDARD = {
+  BHL600:{name:'Highline base unit 600',category:'Base units',construction:'base',w:600,h:720,d:570,doors:'single',shelves:1,drawers:0},
+  BHL1000:{name:'Highline base unit 1000',category:'Base units',construction:'base',w:1000,h:720,d:570,doors:'pair',shelves:1,drawers:0},
+  B3D600A:{name:'3 drawer base unit 600',category:'Drawer units',construction:'base',w:600,h:720,d:570,doors:'none',shelves:0,drawers:3},
+  WM600:{name:'Wall unit 600',category:'Wall units',construction:'wall',w:600,h:720,d:300,doors:'single',shelves:2,drawers:0},
+  WM1000:{name:'Wall unit 1000',category:'Wall units',construction:'wall',w:1000,h:720,d:300,doors:'pair',shelves:2,drawers:0},
+  LM600:{name:'Larder unit 600',category:'Tall units',construction:'tall',w:600,h:1970,d:570,doors:'single',shelves:5,drawers:0},
+  'SHR2-800':{name:'Wardrobe 800, 2 doors',category:'Wardrobes',construction:'robe',w:800,h:2120,d:570,doors:'pair',shelves:1,drawers:0},
+  'C3J-600':{name:'3 drawer unit on plinth 600',category:'Drawer units',construction:'plinth',w:600,h:760,d:570,doors:'none',shelves:0,drawers:3},
+  BCHL9X9:{name:'L-shape corner base unit 900 × 900',category:'Corner units',construction:'base',w:900,h:720,d:570,doors:'pair',shelves:1,drawers:0},
+};
+const isStandard = code => Object.prototype.hasOwnProperty.call(STANDARD, code);
+
+/* ---------- storage: shared database inside Claude, browser storage when hosted elsewhere ---------- */
+const local = {
+  read(c){ try { return JSON.parse(localStorage.getItem('ecp-' + c)) || {}; } catch(e){ return {}; } },
+  write(c, v){ try { localStorage.setItem('ecp-' + c, JSON.stringify(v)); } catch(e){} },
+};
+const S = { db:null, staff:true, shared:false, listeners:{}, me:'local' };
+let orderDocs = {};   // orders are kept one document per customer: orders/<customer id> = {orders:[...]}
+function watch(coll, cb){
+  S.listeners[coll] = cb;
+  if (S.db){
+    const t = setTimeout(()=>showMode('The shared database is not reachable yet. Showing what is saved so far.', true), 10000);
+    S.db.collection(coll).onSnapshot(snap => {
+      if (!snap.metadata.fromCache) clearTimeout(t);
+      const m = {}; snap.docs.forEach(d => { m[d.id] = Object.assign({}, d.data()); }); cb(m);
+    }, err => { clearTimeout(t); showMode(`Couldn't load ${coll}: ${err && err.message || err}`, true); });
+  } else cb(local.read(coll));
+}
+async function put(coll, id, data){
+  if (S.db) return S.db.collection(coll).doc(id).set(data);
+  const m = local.read(coll); m[id] = data; local.write(coll, m); S.listeners[coll] && S.listeners[coll](m);
+}
+async function del(coll, id){
+  if (S.db) return S.db.collection(coll).doc(id).delete();
+  const m = local.read(coll); delete m[id]; local.write(coll, m); S.listeners[coll] && S.listeners[coll](m);
+}
+function showMode(text, warn){ $('modeNote').hidden = !text; $('modeNote').textContent = text || ''; $('modeNote').classList.toggle('warn', !!warn); }
+
+/* ---------- state ---------- */
+let inv = {}, orders = {}, meta = { nextJob: 5 };
+let basket = (()=>{ try { return JSON.parse(localStorage.getItem('ecp-basket')) || []; } catch(e){ return []; } })();
+let ui = { view:'shop', cat:'All', order:null, armed:null, editing:null };
+const saveBasket = () => { try { localStorage.setItem('ecp-basket', JSON.stringify(basket)); } catch(e){} };
+
+function syncEngine(){
+  E.setCustomCabinets(Object.values(inv).filter(i => !isStandard(i.code)));
+}
+function itemParams(i){ return isStandard(i.code) ? Object.assign({}, STANDARD[i.code], i) : i; }
+
+/* ---------- front elevation drawing for shop cards ---------- */
+function elevation(i){
+  const p = itemParams(i);
+  const W = p.w, H = p.h, s = 130 / Math.max(W, H);
+  const w = W*s, h = H*s, pad = 6;
+  const robeLegs = p.construction==='robe' && p.support==='legs';
+  const plinth = robeLegs ? (+p.legH||100)*s : p.construction==='robe'||p.construction==='plinth' ? (p.plinth||100)*s : 0;
+  const legs = p.construction==='base'||p.construction==='tall' ? 100*s : 0;
+  const vbH = h + pad*2 + legs;
+  let g = `<svg viewBox="0 0 ${(w+pad*2).toFixed(1)} ${vbH.toFixed(1)}" role="img" aria-label="Front view of ${esc(p.name)}">`;
+  const x0 = pad, y0 = pad, bodyH = h - plinth;
+  g += `<rect x="${x0}" y="${y0}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" fill="var(--board)" stroke="var(--board-line)"/>`;
+  if (plinth && robeLegs){
+    // legs under the carcass; a gable that runs to the floor is drawn full height
+    g = g.replace(/<rect x="[^"]*" y="[^"]*" width="[^"]*" height="[^"]*" fill="var\(--board\)"[^>]*\/>$/, `<rect x="${x0}" y="${y0}" width="${w.toFixed(1)}" height="${bodyH.toFixed(1)}" fill="var(--board)" stroke="var(--board-line)"/>`);
+    for (const [hand,x] of [['L',x0],['R',x0+w-3]]) if (p.floorGables==='both'||p.floorGables===hand) g += `<rect x="${x.toFixed(1)}" y="${(y0+bodyH).toFixed(1)}" width="3" height="${plinth.toFixed(1)}" fill="var(--board)" stroke="var(--board-line)"/>`;
+    for (const x of [x0+6, x0+w-10]) g += `<rect x="${x.toFixed(1)}" y="${(y0+bodyH).toFixed(1)}" width="4" height="${plinth.toFixed(1)}" fill="var(--ink-2)"/>`;
+  } else if (plinth) g += `<rect x="${x0+2}" y="${(y0+bodyH).toFixed(1)}" width="${(w-4).toFixed(1)}" height="${plinth.toFixed(1)}" fill="var(--surface)" stroke="var(--board-line)"/>`;
+  const gap = 2;
+  if (p.drawers && (p.construction==='robe' || (p.construction==='base' && p.drawerType==='internal' && p.doors!=='none'))){
+    // wardrobe: external drawers below the doors, or internal drawers behind full-height doors
+    const n = p.drawers, ext = p.drawerType !== 'internal';
+    const packH = Math.min(bodyH*0.7, n*220*s), packTop = y0 + bodyH - packH;
+    const doorH = ext ? packTop - y0 : bodyH, dw = p.doors==='pair' ? (w - gap*3)/2 : w - gap*2;
+    const nd = p.doors==='pair' ? 2 : p.doors==='single' ? 1 : 0;
+    if (!ext) { const ih = (packH - gap*(n+1))/n; for (let k=0;k<n;k++) g += `<rect x="${(x0+w*0.12).toFixed(1)}" y="${(packTop+gap+k*(ih+gap)).toFixed(1)}" width="${(w*0.76).toFixed(1)}" height="${ih.toFixed(1)}" fill="none" stroke="var(--ink-2)" stroke-dasharray="3 2"/>`; }
+    for (let k=0;k<nd;k++) g += `<rect x="${(x0+gap+k*(dw+gap)).toFixed(1)}" y="${y0+gap}" width="${dw.toFixed(1)}" height="${(doorH-2*gap).toFixed(1)}" fill="var(--door)" fill-opacity="${ext?1:0.55}" stroke="var(--board-line)"/>`;
+    if (ext) { const dh = (packH - gap*(n+1))/n; for (let k=0;k<n;k++){ const y = packTop+gap+k*(dh+gap); g += `<rect x="${x0+gap}" y="${y.toFixed(1)}" width="${(w-2*gap).toFixed(1)}" height="${dh.toFixed(1)}" fill="var(--door)" stroke="var(--board-line)"/><rect x="${(x0+w/2-10).toFixed(1)}" y="${(y+5).toFixed(1)}" width="20" height="2.5" rx="1" fill="var(--ink-2)"/>`; } }
+  } else if (p.drawers){
+    const dh = (bodyH - gap*(p.drawers+1)) / p.drawers;
+    for (let k=0;k<p.drawers;k++){ const y = y0+gap+k*(dh+gap); g += `<rect x="${x0+gap}" y="${y.toFixed(1)}" width="${(w-2*gap).toFixed(1)}" height="${dh.toFixed(1)}" fill="var(--door)" stroke="var(--board-line)"/><rect x="${(x0+w/2-10).toFixed(1)}" y="${(y+5).toFixed(1)}" width="20" height="2.5" rx="1" fill="var(--ink-2)"/>`; }
+  } else if (p.doors==='pair'){
+    const dw = (w - gap*3)/2;
+    for (let k=0;k<2;k++){ const x = x0+gap+k*(dw+gap); g += `<rect x="${x.toFixed(1)}" y="${y0+gap}" width="${dw.toFixed(1)}" height="${(bodyH-2*gap).toFixed(1)}" fill="var(--door)" stroke="var(--board-line)"/>`; }
+    g += `<rect x="${(x0+w/2-6).toFixed(1)}" y="${(y0+12).toFixed(1)}" width="2.5" height="18" rx="1" fill="var(--ink-2)"/><rect x="${(x0+w/2+3.5).toFixed(1)}" y="${(y0+12).toFixed(1)}" width="2.5" height="18" rx="1" fill="var(--ink-2)"/>`;
+  } else if (p.doors==='single'){
+    g += `<rect x="${x0+gap}" y="${y0+gap}" width="${(w-2*gap).toFixed(1)}" height="${(bodyH-2*gap).toFixed(1)}" fill="var(--door)" stroke="var(--board-line)"/><rect x="${(x0+w-12).toFixed(1)}" y="${(y0+12).toFixed(1)}" width="2.5" height="18" rx="1" fill="var(--ink-2)"/>`;
+  }
+  if (legs){ for (const lx of [x0+6, x0+w-10]) g += `<rect x="${lx.toFixed(1)}" y="${(y0+h).toFixed(1)}" width="4" height="${legs.toFixed(1)}" fill="var(--ink-2)"/>`; }
+  return g + `</svg>`;
+}
+
+/* ---------- SHOP ---------- */
+function renderShop(){
+  const items = Object.values(inv).filter(i => i.active !== false).sort((a,b)=>(CATS.indexOf(a.category)-CATS.indexOf(b.category)) || a.code.localeCompare(b.code));
+  const cats = ['All', ...CATS.filter(c => items.some(i => i.category===c))];
+  if (!cats.includes(ui.cat)) ui.cat = 'All';
+  $('cats').innerHTML = cats.map(c => `<button type="button" class="pill" data-cat="${esc(c)}" aria-pressed="${c===ui.cat}">${esc(c)}</button>`).join('');
+  const shown = items.filter(i => ui.cat==='All' || i.category===ui.cat);
+  $('cards').innerHTML = shown.length ? shown.map(i => {
+    const p = itemParams(i);
+    return `<article class="card">
+      <div class="pic">${elevation(i)}</div>
+      <div><div class="code">${esc(i.code)}</div><div class="nm">${esc(i.name)}</div>
+      <div class="dims">W ${p.w} × H ${p.h} × D ${p.d} mm</div></div>
+      <div class="price">${+i.price ? money(i.price) + ' <small>ex VAT</small>' : '<small>Price on request</small>'}</div>
+      <div class="row">
+        ${p.doors==='single' ? `<label class="f" for="h-${esc(i.code)}">Hinged<select id="h-${esc(i.code)}"><option value="L">Left</option><option value="R">Right</option></select></label>` : ''}
+        <label class="f" for="q-${esc(i.code)}" style="flex:0 1 74px">Qty<input id="q-${esc(i.code)}" type="number" min="1" max="50" value="1"></label>
+        <button class="b primary" type="button" data-add="${esc(i.code)}">Add</button>
+      </div>
+    </article>`;
+  }).join('') : `<div class="empty">No cabinets in the shop yet.${S.staff ? ' Add some in Inventory.' : ''}</div>`;
+}
+$('cats').addEventListener('click', e => { const b = e.target.closest('[data-cat]'); if (b){ ui.cat = b.dataset.cat; renderShop(); } });
+$('cards').addEventListener('click', e => {
+  const b = e.target.closest('[data-add]'); if (!b) return;
+  const code = b.dataset.add, i = inv[code]; if (!i) return;
+  const qty = Math.max(1, Math.min(50, Math.round(+$('q-'+code).value || 1)));
+  const hinge = $('h-'+code) ? $('h-'+code).value : null;
+  const same = basket.find(x => x.code===code && x.hinge===hinge);
+  if (same) same.qty += qty; else basket.push({code, qty, hinge});
+  saveBasket(); renderBasket(); b.textContent = 'Added'; setTimeout(()=>{ b.textContent = 'Add'; }, 1200);
+});
+
+/* ---------- BASKET ---------- */
+function renderBasket(){
+  const n = basket.reduce((a,x)=>a+x.qty,0);
+  $('basketCount').hidden = !n; $('basketCount').textContent = n;
+  $('basketRows').innerHTML = basket.length ? basket.map((x,k) => {
+    const i = inv[x.code];
+    return `<tr><td><b>${esc(i ? i.name : x.code)}</b><br><span class="mono" style="color:var(--muted)">${esc(x.code)}</span></td>
+      <td>${x.hinge ? (x.hinge==='L'?'Left':'Right') : '—'}</td>
+      <td class="num"><input type="number" min="1" max="50" value="${x.qty}" data-qty="${k}" style="width:68px" aria-label="Quantity of ${esc(x.code)}"></td>
+      <td class="num">${i && +i.price ? money(i.price * x.qty) : '—'}</td>
+      <td class="num"><button class="b sm" type="button" data-rm="${k}">Remove</button></td></tr>`;
+  }).join('') : `<tr><td colspan="5"><div class="empty">Your basket is empty. Add cabinets from the shop.</div></td></tr>`;
+  const sub = basket.reduce((a,x)=>a + (+(inv[x.code]||{}).price||0)*x.qty, 0);
+  $('totals').innerHTML = basket.length ? `<span>Subtotal</span><span>${money(sub)}</span><span>VAT 20%</span><span>${money(sub*VAT)}</span><span><b>Total</b></span><span><b>${money(sub*(1+VAT))}</b></span>` : '';
+  $('placeBtn').disabled = !basket.length;
+}
+$('basketRows').addEventListener('change', e => { const k = e.target.dataset.qty; if (k!=null){ basket[k].qty = Math.max(1, Math.min(50, Math.round(+e.target.value||1))); saveBasket(); renderBasket(); } });
+$('basketRows').addEventListener('click', e => { const k = e.target.dataset.rm; if (k!=null){ basket.splice(+k,1); saveBasket(); renderBasket(); } });
+$('checkout').addEventListener('submit', async e => {
+  e.preventDefault();
+  if (!basket.length) return;
+  const id = 'o' + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+  const items = basket.map(x => { const i = inv[x.code] || {}; return { code:x.code, name:i.name||x.code, qty:x.qty, hinge:x.hinge, price:+i.price||0 }; });
+  const o = { id, createdAt: new Date().toISOString(), status:'new', items,
+    customer:{ name:$('cName').value.trim(), phone:$('cPhone').value.trim(), email:$('cEmail').value.trim(), address:$('cAddr').value.trim(), ref:$('cRef').value.trim() } };
+  $('placeBtn').disabled = true; $('orderMsg').textContent = 'Sending your order…';
+  try {
+    let mine = { orders: [] };
+    if (S.db){ const snap = await S.db.collection('orders').doc(S.me).get(); if (snap.exists) mine = Object.assign({ orders: [] }, snap.data()); }
+    else mine = Object.assign({ orders: [] }, local.read('orders')[S.me] || {});
+    await put('orders', S.me, { owner: S.me, orders: [...(mine.orders || []), o] });
+    basket = []; saveBasket(); renderBasket(); $('checkout').reset();
+    $('orderMsg').textContent = `Order placed, reference ${id.slice(-6).toUpperCase()}. The workshop has it now.`;
+  } catch(err){
+    $('placeBtn').disabled = false;
+    $('orderMsg').textContent = `The order didn't go through (${err && err.message || err}). Your basket is unchanged, so you can try again.`;
+  }
+});
+
+/* ---------- WORKSHOP ---------- */
+const STATUS = { new:'New', released:'Released', done:'Cut and drilled' };
+function renderOrders(){
+  const list = Object.values(orders).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));
+  $('orderList').innerHTML = list.length ? list.map(o => {
+    const n = (o.items||[]).reduce((a,x)=>a+x.qty,0);
+    return `<button type="button" class="ord" data-ord="${esc(o.id)}" aria-current="${o.id===ui.order}">
+      <span class="chip ${esc(o.status)}">${esc(STATUS[o.status]||o.status)}</span>
+      <span><span class="who">${esc(o.customer && o.customer.name || 'Customer')}</span> ${o.customer && o.customer.ref ? '· ' + esc(o.customer.ref) : ''}<br><span class="when">${new Date(o.createdAt).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'})} · ${n} cabinet${n===1?'':'s'}</span></span>
+      <span class="mono">${o.job ? esc(o.job) : ''}</span></button>`;
+  }).join('') : `<div class="empty">No orders yet. Orders placed in the shop appear here.</div>`;
+  renderOrderDetail();
+}
+$('orderList').addEventListener('click', e => { const b = e.target.closest('[data-ord]'); if (b){ ui.order = b.dataset.ord; ui.armed = null; renderOrders(); } });
+
+function orderCabinets(o){
+  const cabs = [];
+  for (const x of o.items||[]) for (let k=0;k<x.qty;k++) cabs.push({ code:x.code, options: x.hinge ? {hinge:x.hinge} : {}, room: (o.customer && o.customer.ref) || 'Room 1' });
+  return cabs;
+}
+function buildParts(o){
+  return E.buildOrder({ job:o.job || 'R00', name:(o.customer && o.customer.name) || 'Job', cabinets: orderCabinets(o).filter(c => E.parseCode(c.code)) });
+}
+function renderOrderDetail(){
+  const o = orders[ui.order];
+  if (!o){ $('orderDetail').innerHTML = `<div class="empty">Choose an order to see its cabinets and machine files.</div>`; return; }
+  const missing = (o.items||[]).filter(x => !E.parseCode(x.code)).map(x=>x.code);
+  let parts = []; try { parts = buildParts(o); } catch(e){}
+  const drilled = parts.filter(p=>p.program).length;
+  const area = parts.reduce((a,p)=>a + p.L*p.W, 0) / 1e6;
+  let nest = []; try { nest = NE.nestOrder(parts, { job:o.job || 'R00' }); } catch(e){}
+  const sheets = nest.length;
+  const c = o.customer || {};
+  $('orderDetail').innerHTML = `
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <div><h2>${o.job ? 'Job ' + esc(o.job) : 'Not released yet'}</h2><div style="font-weight:800;font-size:18px">${esc(c.name||'Customer')}</div></div>
+      <span class="chip ${esc(o.status)}">${esc(STATUS[o.status]||o.status)}</span>
+    </div>
+    <p class="hint">${[c.phone, c.email].filter(Boolean).map(esc).join(' · ') || 'No contact details'}${c.address ? '<br>' + esc(c.address).replace(/\n/g,'<br>') : ''}</p>
+    <div class="tbl"><table><thead><tr><th>Cabinet</th><th>Door</th><th class="num">Qty</th></tr></thead><tbody>
+      ${(o.items||[]).map(x=>`<tr><td><b>${esc(x.name)}</b> <span class="mono" style="color:var(--muted)">${esc(x.code)}</span></td><td>${x.hinge ? (x.hinge==='L'?'Left':'Right') : '—'}</td><td class="num">${x.qty}</td></tr>`).join('')}
+    </tbody></table></div>
+    ${missing.length ? `<div class="note warn">These codes are no longer in the inventory, so they're left out of the machine files: ${missing.map(esc).join(', ')}</div>` : ''}
+    <div class="stats"><div><b>${parts.length}</b><span>panels</span></div><div><b>${drilled}</b><span>drilling programs</span></div><div><b>${area.toFixed(1)} m²</b><span>board</span></div><div><b>${sheets}</b><span>sheets 2800 × 2070</span></div></div>
+    <div class="row">
+      ${o.status==='new' ? `<label class="f" for="jobNo" style="flex:0 1 170px">Job number (from sales)<input id="jobNo" maxlength="8" autocomplete="off" value="${esc(ui.jobNo ?? jobCode(meta.nextJob))}"></label><button class="b primary" type="button" id="relBtn">Release to production</button>` : ''}
+      ${o.job ? `<button class="b primary" type="button" id="dlBtn">Download machine files (.zip)</button>` : ''}
+      ${o.status==='released' ? `<button class="b" type="button" id="doneBtn">Mark cut and drilled</button>` : ''}
+      <button class="b" type="button" id="delOrd">${ui.armed===o.id ? 'Confirm delete' : 'Delete order'}</button>
+    </div>
+    <p class="msg" id="wsMsg" role="status">${o.job ? '' : 'Type the job number the sales team booked. File names, program names and barcodes use it, e.g. ' + esc((ui.jobNo || jobCode(meta.nextJob)).toLowerCase()) + 'b0001 and ' + esc((ui.jobNo || jobCode(meta.nextJob)).toUpperCase()) + '0101N.'}</p>
+    ${nest.length ? `<h2>Sheets</h2><div class="sheets">${nest.map(sh=>`<figure>${NE.sheetSvg(sh,{width:520})}<figcaption><span class="mono">${esc(o.job ? sh.name : 'Sheet ' + sh.sheetNo)}</span> · ${sh.placements.length} parts · ${Math.round(sh.placements.reduce((a,q)=>a+q.part.L*q.part.W,0)/(sh.sheetL*sh.sheetW)*100)}% used${sh.offcut ? ` · offcut ${sh.offcut.L} × ${sh.offcut.W}` : ''}</figcaption></figure>`).join('')}</div><p class="hint">Yellow is where the label goes. Numbers are the cutting and labelling order.</p>` : ''}
+    ${o.job ? `<h2>Labels</h2><div class="labels">${parts.slice(0,12).map(p=>`<div>${LB.labelSvg(p)}</div>`).join('')}</div>${parts.length>12?`<p class="hint">Showing 12 of ${parts.length}. All of them are in the download.</p>`:''}` : ''}`;
+  const on = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
+  on('relBtn', () => release(o));
+  const jn = $('jobNo'); if (jn) jn.oninput = () => { ui.jobNo = jn.value; const m = $('wsMsg'); const v = cleanJob(jn.value); if (m) m.textContent = v ? 'Files will be named ' + v.toLowerCase() + 'b0001, ' + v + '0101N …' : ''; };
+  on('dlBtn', () => downloadFiles(o));
+  on('doneBtn', () => updateOrder(o, {status:'done'}).catch(err => { $('wsMsg').textContent = `Couldn't update: ${err.message||err}`; }));
+  on('delOrd', async () => {
+    if (ui.armed !== o.id){ ui.armed = o.id; renderOrderDetail(); return; }
+    ui.armed = null; ui.order = null;
+    try { await updateOrder(o, null); } catch(err){ $('wsMsg').textContent = `Couldn't delete: ${err.message||err}`; }
+  });
+}
+/** change (patch) or remove (null) one order inside its customer's document */
+async function updateOrder(o, patch){
+  const d = orderDocs[o._doc] || { orders: [] };
+  const list = (d.orders || []).map(x => x.id === o.id ? (patch ? Object.assign({}, x, patch) : null) : x).filter(Boolean);
+  await put('orders', o._doc, Object.assign({}, d, { orders: list }));
+}
+const jobCode = n => 'R' + String(n).padStart(2,'0');
+/** job numbers: letters and digits only (they become file and program names) */
+const cleanJob = v => String(v||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8);
+async function release(o){
+  const n = Math.max(1, Math.min(99, Math.round(+meta.nextJob || 1)));
+  const typed = cleanJob($('jobNo') ? $('jobNo').value : '');
+  const job = typed || jobCode(n);
+  const clash = Object.values(orders).find(x => x.id !== o.id && x.job && x.job.toUpperCase() === job);
+  if (clash){ $('wsMsg').textContent = `Job ${job} is already used by ${(clash.customer&&clash.customer.name)||'another order'}. Use a different number.`; return; }
+  try {
+    if (job === jobCode(n)) await put('meta', 'settings', Object.assign({}, meta, { nextJob: n >= 99 ? 1 : n + 1 }));
+    ui.jobNo = null;
+    await updateOrder(o, { status:'released', job, releasedAt:new Date().toISOString() });
+  } catch(err){ $('wsMsg').textContent = `Couldn't release: ${err.message||err}`; }
+}
+$('nextJob').addEventListener('change', () => { const n = Math.max(1, Math.min(99, Math.round(+$('nextJob').value||1))); put('meta','settings',Object.assign({}, meta, {nextJob:n})).catch(()=>{}); });
+
+function svgToJpeg(svg){
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(new Blob([svg], {type:'image/svg+xml'}));
+    const img = new Image();
+    img.onload = () => { const c = document.createElement('canvas'); c.width = 600; c.height = 600; const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0,0,600,600); g.drawImage(img,0,0,600,600); URL.revokeObjectURL(url); c.toBlob(b => b ? resolve(b) : reject(new Error('label render failed')), 'image/jpeg', 0.92); };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('label render failed')); };
+    img.src = url;
+  });
+}
+function loadScript(src){
+  return new Promise((resolve, reject) => { const el = document.createElement('script'); el.src = src; el.onload = resolve; el.onerror = () => reject(new Error('could not load ' + src)); document.head.appendChild(el); });
+}
+function svgToPng(svg, w, h){
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(new Blob([svg], {type:'image/svg+xml'}));
+    const img = new Image();
+    img.onload = () => { const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0,0,w,h); g.drawImage(img,0,0,w,h); URL.revokeObjectURL(url); resolve(c.toDataURL('image/jpeg', 0.9)); };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('sheet drawing failed')); };
+    img.src = url;
+  });
+}
+function edgingText(p){
+  const cnt = {}; Object.values(p.edgeSides||{}).forEach(v => { const k = v==='I' ? '0.8' : '2'; cnt[k] = (cnt[k]||0) + 1; });
+  return Object.entries(cnt).map(([k,n]) => n + '×' + k + 'mm').join(' ') || '—';
+}
+/** one A4 landscape page per sheet: the nest with every part numbered and all drilling, plus the parts list */
+async function newPdf(){
+  if (!(window.jspdf && window.jspdf.jsPDF)) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+  return new window.jspdf.jsPDF({ orientation:'landscape', unit:'mm', format:'a4' });
+}
+async function sheetsPdf(job, customer, sheets){
+  const doc = await newPdf();
+  await addSheetPages(doc, job, customer, sheets, true);
+  return doc.output('blob');
+}
+/** a small table helper for jsPDF: cols [[x, heading, width]] */
+function pdfTable(doc, cols, rows, y, opts = {}){
+  const rowH = opts.rowH || 4.8, right = opts.right || 287, bottom = opts.bottom || 200;
+  const head = () => { doc.setFontSize(opts.size || 8); doc.setFont('helvetica','bold'); doc.setTextColor(20); cols.forEach(([x,t]) => doc.text(t, x, y)); doc.setDrawColor(150); doc.line(cols[0][0], y+1.3, right, y+1.3); y += 5.2; doc.setFont('helvetica','normal'); };
+  head();
+  rows.forEach((r, k) => {
+    if (y > bottom){ doc.addPage(); y = 16; head(); }
+    if (k % 2){ doc.setFillColor(243,240,233); doc.rect(cols[0][0]-1, y-3.4, right-cols[0][0]+1, rowH, 'F'); }
+    doc.setTextColor(20);
+    r.forEach((t, c) => { const w = (c+1 < cols.length ? cols[c+1][0] : right) - cols[c][0] - 1.2; doc.text(doc.splitTextToSize(String(t ?? ''), w)[0] || '', cols[c][0], y); });
+    y += rowH;
+  });
+  return y;
+}
+/** describe one cabinet in words for the paperwork */
+function cabinetSpec(b){
+  const o = Object.assign({}, STANDARD[b.code] || {}, b.options), m = b.meta || {};
+  const bits = [];
+  if (o.doors && o.doors !== 'none' && !(m.nDr && !m.internal && b.family==='CUSTOM' && o.construction!=='robe')) bits.push(o.doors==='pair' ? 'pair of doors' : 'single door' + (o.hinge ? ', hinged ' + (o.hinge==='R' ? 'right' : 'left') : ''));
+  if (b.family==='B3D' || b.family==='C3J') bits.push('3 external drawers');
+  else if (m.nDr) bits.push(m.nDr + (m.internal ? ' internal' : ' external') + ' drawer' + (m.nDr>1?'s':'') + (m.internal ? ' (32mm fillers)' : ''));
+  const sh = (m.rows||[]).length; if (sh) bits.push(sh + ' shel' + (sh>1?'ves':'f'));
+  if (m.hatRail) bits.push('hanging rail');
+  if (m.legs) bits.push('legs ' + m.legs + (m.floor && m.floor!=='none' ? ', ' + ({L:'LH gable',R:'RH gable',both:'both gables'})[m.floor] + ' to floor' : ''));
+  else if (o.plinth && (o.construction==='robe' || o.construction==='plinth' || b.family==='SHR' || b.family==='C3J')) bits.push('plinth ' + o.plinth);
+  return bits.join(', ');
+}
+/** the job paperwork: job sheet, one page per cabinet (front view + its parts and where each one is nested), then the sheets */
+async function jobPackPdf(o, parts, sheets){
+  const doc = await newPdf();
+  const job = o.job, c = o.customer || {};
+  const where = {};
+  sheets.forEach(sh => NE.labelPoints(sh).forEach((lp, k) => { where[lp.part.id] = sh.name + ' #' + (k+1); }));
+  const cabs = orderCabinets(o).filter(x => E.parseCode(x.code));
+  const built = cabs.map(x => E.buildCabinet(x.code, x.options));
+  // page 1: job sheet
+  doc.setFont('helvetica','bold'); doc.setFontSize(20); doc.text('Job ' + job, 10, 16);
+  doc.setFontSize(11); doc.setFont('helvetica','normal');
+  const info = [c.name, c.ref, [c.phone, c.email].filter(Boolean).join(' · '), (c.address||'').replace(/\n/g, ', ')].filter(Boolean);
+  info.forEach((t, i) => doc.text(String(t), 10, 24 + i*5.5));
+  const released = o.releasedAt ? new Date(o.releasedAt).toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'}) : '';
+  doc.setFontSize(9); doc.setTextColor(90);
+  doc.text(`Released ${released} · ${cabs.length} cabinets · ${parts.length} panels · ${parts.filter(p=>p.program).length} drilling programs · ${sheets.length} sheets`, 10, 26 + info.length*5.5);
+  pdfTable(doc, [[10,'#'],[18,'Code'],[42,'Cabinet'],[105,'W × H × D'],[132,'Details'],[245,'Panels'],[262,'Programs']],
+    built.map((b, i) => { const ps = parts.filter(p => p.cabinetNumber === i+1); const pr = ps.filter(p=>p.program).map(p=>p.program.toUpperCase());
+      const nm = (inv[cabs[i].code] && inv[cabs[i].code].name) || b.label;
+      return [i+1, cabs[i].code, nm, `${b.options.w} × ${b.options.h} × ${b.options.d}`, cabinetSpec(b), ps.length, pr.length ? pr[0].slice(-4) + '–' + pr[pr.length-1].slice(-4) : '—']; }),
+    36 + info.length*5.5, { size: 8.5 });
+  // one page per cabinet
+  for (let i = 0; i < built.length; i++){
+    const b = built[i];
+    doc.addPage();
+    const nm = (inv[cabs[i].code] && inv[cabs[i].code].name) || b.label;
+    doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(20); doc.text(`Cabinet ${i+1}: ${nm}`, 10, 13);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(90);
+    doc.text(`Job ${job} · ${cabs[i].code} · ${b.options.w} × ${b.options.h} × ${b.options.d} mm · ${cabinetSpec(b)}`, 10, 18.5);
+    const svg = cabinetView(b).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ').replace(/var\(--[a-z0-9-]+\)/g, v => PDF_COLORS[v] || '#888');
+    const vb = svg.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/); const ar = vb ? +vb[1] / +vb[2] : 0.5;
+    const ih = 170, iw = Math.min(110, ih * ar), ihh = iw / ar;
+    doc.addImage(await svgToPng(svg, Math.round(iw*8), Math.round(ihh*8)), 'JPEG', 10, 24, iw, ihh);
+    const ps = parts.filter(p => p.cabinetNumber === i+1);
+    pdfTable(doc, [[128,'Part'],[160,'L × W'],[183,'Edging'],[204,'Holes'],[218,'Program'],[244,'On sheet']],
+      ps.map(p => [p.name, p.L + ' × ' + p.W, edgingText(p), p.holes.length + ((p.routes||[]).length ? ' +' + p.routes.length + ' routed' : ''), p.program ? p.program.toUpperCase() : '—', where[p.id] || '']), 28, { size: 8 });
+  }
+  // the sheets
+  await addSheetPages(doc, job, c.name || '', sheets, false);
+  return doc.output('blob');
+}
+const PDF_COLORS = { 'var(--board)':'#EFE6D6', 'var(--board-line)':'#B9A88C', 'var(--door)':'#DDE3CF', 'var(--surface)':'#FFFFFF', 'var(--surface-2)':'#F0EDE6', 'var(--line)':'#E3DED3', 'var(--line-2)':'#D3CDBF', 'var(--ink-2)':'#4A453D', 'var(--muted)':'#7A7368' };
+async function addSheetPages(doc, job, customer, sheets, firstOnCurrent){
+  for (let i = 0; i < sheets.length; i++){
+    const sh = sheets[i];
+    if (!(firstOnCurrent && i === 0)) doc.addPage();
+    const used = Math.round(sh.placements.reduce((a,q)=>a+q.part.L*q.part.W,0)/(sh.sheetL*sh.sheetW)*100);
+    doc.setFont('helvetica','bold'); doc.setFontSize(14);
+    doc.text(`${sh.name}   Sheet ${i+1} of ${sheets.length}`, 10, 12);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9);
+    doc.text(`Job ${job}${customer ? ' · ' + customer : ''} · ${sh.material} ${sh.T}mm · ${sh.sheetL} × ${sh.sheetW} · ${sh.placements.length} parts · ${used}% used${sh.offcut ? ' · offcut ' + sh.offcut.L + ' × ' + sh.offcut.W : ''}`, 10, 17.5);
+    // the nest, seen from above as it lies on the machine (origin corner top left)
+    const iw = 166, ih = iw * sh.sheetW / sh.sheetL;
+    const png = await svgToPng(NE.sheetSvg(sh, { width: 1780, holes: true }), 1780, Math.round(1780 * sh.sheetW / sh.sheetL));
+    doc.addImage(png, 'JPEG', 10, 22, iw, ih);
+    // legend
+    let ly = 22 + ih + 6; doc.setFontSize(7.5);
+    const key = [['#1f5fa8','Cam housing Ø15 (circle)'],['#2f8a4a','Dowel / leg plate Ø8-10'],['#555555','Shelf pin, hinge, runner Ø5'],['#8a5a1f','Back screw Ø5 through'],['#c0392b','Edge bore (line = depth)'],['#f4c542','Label']];
+    key.forEach(([c,t],k) => { const x = 10 + (k%3)*60, y = ly + Math.floor(k/3)*5; doc.setFillColor(c); doc.rect(x, y-2.6, 3, 3, 'F'); doc.setTextColor(40); doc.text(t, x+4.5, y); });
+    doc.setTextColor(90); doc.text('Numbers match the label order (.pts). Drilling is done on the boring machine after cutting; shown here for checking.', 10, ly + 12);
+    // parts list
+    const x0 = 181; let y = 25;
+    const cols = [[x0,'#'],[x0+5,'Part'],[x0+30,'Cabinet'],[x0+52,'L × W'],[x0+72,'Edging'],[x0+90,'Program']];
+    doc.setFontSize(7.5); doc.setFont('helvetica','bold'); doc.setTextColor(20);
+    cols.forEach(([x,t]) => doc.text(t, x, y)); doc.setDrawColor(150); doc.line(x0, y+1.2, 288, y+1.2); y += 5;
+    doc.setFont('helvetica','normal');
+    const pts = NE.labelPoints(sh);
+    const rowH = Math.min(4.6, (200 - y) / Math.max(1, pts.length));
+    pts.forEach((lp, k) => {
+      const p = lp.part;
+      if (k % 2) { doc.setFillColor(243,240,233); doc.rect(x0-1, y-3.3, 107, rowH, 'F'); }
+      doc.setTextColor(20);
+      const cells = [String(k+1), p.name, p.cabinetNumber + ' ' + p.cabinetCode, p.L + '×' + p.W, edgingText(p), p.program ? p.program.toUpperCase() : '—'];
+      cells.forEach((t, c) => doc.text(doc.splitTextToSize(String(t), (c+1 < cols.length ? cols[c+1][0] : 290) - cols[c][0] - 1)[0], cols[c][0], y));
+      y += rowH;
+    });
+  }
+}
+function csvCell(v){ v = String(v ?? ''); return /[",\n]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v; }
+async function downloadFiles(o){
+  const msg = t => { const el = $('wsMsg'); if (el) el.textContent = t; };
+  if (!window.JSZip){ msg('The zip library did not load. Check the internet connection and reload the page.'); return; }
+  msg('Building files…');
+  try {
+    const parts = buildParts(o);
+    const zip = new JSZip();
+    const job = o.job;
+    // same layout as the Cabinet Vision job folders: <job>/Labels, <job>/NC, <job>/MPR, plus the paperwork
+    const top = zip.folder(job);
+    const drill = top.folder('MPR'), labels = top.folder('Labels');
+    for (const p of parts) if (p.program) drill.file(p.program + '.mpr', E.toMpr(p));
+    let k = 0;
+    for (const p of parts){ labels.file(LB.partLabelFile(job, p.id), await svgToJpeg(LB.labelSvg(p))); if (++k % 10 === 0) msg(`Drawing labels ${k} of ${parts.length}…`); }
+    const rows = [['Part ID','Cabinet','Cabinet code','Part','Length','Width','Thickness','Material','Edging','Program','Barcode']];
+    for (const p of parts){
+      const cnt = {}; Object.values(p.edgeSides||{}).forEach(v => { const k = v==='I' ? '0.8mm' : '2mm'; cnt[k] = (cnt[k]||0) + 1; }); const ed = Object.entries(cnt).map(([k,n]) => n + ' x ' + k).join(', ') || 'none';
+      rows.push([p.id, p.cabinetNumber, p.cabinetCode, p.name, p.L, p.W, p.T, p.material, ed, p.program, p.program ? p.program.toUpperCase() : '']);
+    }
+    // nesting: one cutting program, label-point file and label set per sheet
+    const nesting = top.folder('NC');
+    const sheetsOut = NE.nestOrder(parts, { job });
+    for (const sh of sheetsOut){
+      nesting.file(sh.name + '.NC', NE.toNC(sh));
+      const pts = NE.labelPoints(sh);
+      nesting.file(sh.name + '.pts', LB.toPts(pts));
+      let n = 0;
+      for (const lp of pts){
+        const pl = sh.placements.find(q => q.part === lp.part);
+        labels.file(LB.sheetLabelFile(sh.name, ++n), await svgToJpeg(LB.labelSvg(lp.part, { rotate: pl.along === 'v' ? 90 : 0 })));
+      }
+      msg(`Nesting sheet ${sh.sheetNo} of ${sheetsOut.length}…`);
+    }
+    msg('Making the paperwork PDF…');
+    top.file(job + ' paperwork.pdf', await jobPackPdf(o, parts, sheetsOut));
+    top.file(job + '-cutlist.csv', rows.map(r=>r.map(csvCell).join(',')).join('\r\n') + '\r\n');
+    top.file('README.txt', [`Job ${job} for ${(o.customer&&o.customer.name)||'customer'}`, `${parts.length} panels, ${parts.filter(p=>p.program).length} drilling programs, ${sheetsOut.length} sheets.`, '', 'NC/      SOPH MSK2822A nesting: per sheet (e.g. ' + (sheetsOut[0] ? sheetsOut[0].name : job + '0101N') + ') the .NC cutting program and the .pts label positions', 'Labels/  sheet labels in .pts order (' + (sheetsOut[0] ? sheetsOut[0].name : '') + '_0001.jpg ...) and the same labels per part (' + job.toLowerCase() + 'p0001.jpg ...)', 'MPR/     SOPH MSZ600CR drilling programs, file name = barcode', `${job} paperwork.pdf  job sheet, one page per cabinet (front view, parts, where each part is nested), one page per sheet with all drilling`, `${job}-cutlist.csv  every panel with size, edging and program`].join('\r\n'));
+    const blob = await zip.generateAsync({type:'blob'});
+    const filename = `${job}.zip`;
+    const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
+    if (dl){ await dl.save({filename, data:blob}); msg(`Saved ${filename}.`); }
+    else { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; document.body.appendChild(a); a.click(); a.remove(); msg(`Downloaded ${filename}.`); }
+  } catch(err){
+    msg(err && err.code === 'declined' ? 'Download cancelled.' : `Couldn't build the files: ${err && err.message || err}`);
+  }
+}
+
+/* ---------- INVENTORY ---------- */
+$('iCat').innerHTML = CATS.map(c=>`<option>${c}</option>`).join('');
+$('iCon').innerHTML = Object.entries(E.CONSTRUCTIONS).map(([k,v])=>`<option value="${k}">${v}</option>`).join('');
+function formItem(){
+  return { code:$('iCode').value.trim().toUpperCase(), name:$('iName').value.trim(), category:$('iCat').value, price:Math.max(0, +$('iPrice').value || 0),
+    construction:$('iCon').value, w:+$('iW').value, h:+$('iH').value, d:+$('iD').value, doors:$('iDoors').value,
+    shelves:+$('iShelves').value||0, drawers:+$('iDrawers').value||0, plinth:+$('iPlinth').value||100,
+    drawerType: ($('iCon').value==='robe'||$('iCon').value==='base') ? $('iDrType').value : 'external',
+    support: $('iCon').value==='robe' && $('iSupport').value!=='plinth' ? 'legs' : 'plinth',
+    legH: $('iSupport').value==='legs150' ? 150 : 100,
+    floorGables: $('iCon').value==='robe' && $('iSupport').value!=='plinth' ? $('iFloor').value : 'none' };
+}
+function fillItem(i){
+  const p = itemParams(i);
+  $('iCode').value = i.code||''; $('iName').value = i.name||''; $('iCat').value = i.category || CATS[0]; $('iPrice').value = i.price ?? '';
+  $('iCon').value = p.construction||'base'; $('iW').value = p.w ?? 600; $('iH').value = p.h ?? 720; $('iD').value = p.d ?? 570;
+  $('iDoors').value = p.doors||'none'; $('iShelves').value = p.shelves ?? 0; $('iDrawers').value = p.drawers ?? 0; $('iPlinth').value = p.plinth ?? 100; $('iDrType').value = p.drawerType==='internal' ? 'internal' : 'external';
+  $('iSupport').value = p.support==='legs' ? (+p.legH===150 ? 'legs150' : 'legs100') : 'plinth'; $('iFloor').value = p.floorGables || 'none';
+  syncInvForm(); previewItem();
+}
+function syncInvForm(){
+  const std = isStandard($('iCode').value.trim().toUpperCase());
+  for (const id of ['iCon','iW','iH','iD','iDoors','iShelves','iDrawers','iPlinth','iDrType','iSupport','iFloor']) $(id).disabled = std;
+  if (!std){
+    const con = $('iCon').value;
+    const onLegs = con==='robe' && $('iSupport').value!=='plinth';
+    $('iPlinth').disabled = !((con==='robe' && !onLegs)||con==='plinth');
+    $('iSupport').disabled = con!=='robe'; if (con!=='robe') $('iSupport').value = 'plinth';
+    $('iFloor').disabled = !onLegs; if (!onLegs) $('iFloor').value = 'none';
+    $('iDrawers').disabled = !(con==='base'||con==='plinth'||con==='robe');
+    // internal drawers are a cabinet inside a wardrobe; base and plinth units always have external drawers
+    const canInt = con==='robe' || con==='base';
+    if (!canInt) $('iDrType').value = 'external';
+    $('iDrType').disabled = !canInt;
+    // picking Internal with no drawers set: start at 3 drawers
+    if (canInt && $('iDrType').value==='internal' && !(+$('iDrawers').value > 0)) $('iDrawers').value = 3;
+    const dr = +$('iDrawers').value > 0, intl = canInt && $('iDrType').value==='internal' && dr;
+    $('iShelves').disabled = false;
+    if (intl){ $('iShelves').value = 1; $('iShelves').disabled = true; if ($('iDoors').value==='none') $('iDoors').value = 'single'; }
+    else if (dr && (con==='base' || con==='plinth')){
+      // a drawer unit: drawer fronts instead of doors, no shelves
+      $('iShelves').value = 0; $('iShelves').disabled = true;
+      if ($('iDoors').value !== 'none'){ $('iDoors').dataset.was = $('iDoors').value; $('iDoors').value = 'none'; }
+    }
+    if (!(dr && !intl && (con==='base' || con==='plinth')) && $('iDoors').dataset.was){ $('iDoors').value = $('iDoors').dataset.was; delete $('iDoors').dataset.was; }
+    $('drHint').textContent = !canInt ? 'Internal drawers: choose Wardrobe or Base unit.' : ($('iDrType').value==='internal' && $('iDoors').value==='none') ? 'Internal drawers need a door in front.' : '';
+  }
+}
+function previewItem(){
+  const f = formItem();
+  try {
+    let b;
+    if (isStandard(f.code)) b = E.buildCabinet(f.code);
+    else {
+      const keep = E.customCabinets();
+      E.setCustomCabinets([...keep.filter(x=>x.code!=='__P'), Object.assign({}, f, {code:'__P'})]);
+      b = E.buildCabinet('__P'); E.setCustomCabinets(keep);
+    }
+    $('invView').innerHTML = cabinetView(b); $('invViewCap').textContent = viewCaption(b);
+    $('invPreview').innerHTML = `<table><thead><tr><th>Part</th><th>Length × Width</th><th class="num">Holes</th></tr></thead><tbody>${b.parts.map(p=>`<tr><td><b>${esc(p.name)}</b></td><td class="mono">${p.L} × ${p.W}</td><td class="num mono">${p.holes.length}</td></tr>`).join('')}</tbody></table>`;
+  } catch(e){ $('invPreview').innerHTML = `<p class="hint">Can't build this cabinet yet: ${esc(e.message)}</p>`; $('invView').innerHTML = ''; syncEngine(); }
+}
+/* ---------- 2D front view of the cabinet (doors off), from the engine's own layout ---------- */
+function cabinetView(b){
+  const o = b.options, m = b.meta || {}, P = b.parts, T = E.T;
+  const con = b.family==='CUSTOM' ? o.construction : ({BHL:'base',B3D:'base',BCHL:'base',WM:'wall',LM:'tall',SHR:'robe',C3J:'plinth'})[b.family] || 'base';
+  const robeLegs = con==='robe' && m.legs ? m.legs : 0;
+  const w = +o.w, h = +o.h, pl = (con==='robe'&&!robeLegs)||con==='plinth' ? +(o.plinth||100) : 0, legs = (con==='base'||con==='tall') ? 100 : 0;
+  const bot = pl ? h - pl : robeLegs ? h - robeLegs : h;   // underside of the bottom panel
+  const hL = (P.find(p=>p.role==='lhEnd' && !p.inner)||{L:h}).L, hR = (P.find(p=>p.role==='rhEnd' && !p.inner)||{L:h}).L;
+  const pad = 70, k = 1/3;                              // mm -> px scale is set by the viewBox
+  const W = w + pad*2, H = h + legs + pad + 40;
+  const R = (x,y,ww,hh,fill,extra='') => `<rect x="${(x+pad).toFixed(1)}" y="${(y+40).toFixed(1)}" width="${Math.max(0,ww).toFixed(1)}" height="${Math.max(0,hh).toFixed(1)}" fill="${fill}" ${extra}/>`;
+  const Tx = (x,y,t,a='middle',sz=34,fill='var(--ink-2)') => `<text x="${(x+pad).toFixed(1)}" y="${(y+40).toFixed(1)}" text-anchor="${a}" font-size="${sz}" fill="${fill}" font-family="JetBrains Mono,monospace">${t}</text>`;
+  const line = 'stroke="var(--board-line)" stroke-width="2"';
+  let g = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Front view of the cabinet with the doors off">`;
+  g += R(T, T, w-2*T, bot-2*T, 'var(--surface-2)');                     // inside
+  if (robeLegs) for (const x of [T+25, w-T-55]) g += R(x, bot, 30, robeLegs, 'var(--ink-2)');
+  g += R(0, 0, T, hL, 'var(--board)', line) + R(w-T, 0, T, hR, 'var(--board)', line);
+  g += R(T, 0, w-2*T, T, 'var(--board)', line);                         // top / rail
+  g += R(T, bot-T, w-2*T, T, 'var(--board)', line);                     // base / bottom
+  if (pl) g += R(T+12, bot, w-2*T-24, pl, 'var(--line-2)', line);
+  if (legs) for (const x of [40, w-70]) g += R(x, h, 30, legs, 'var(--ink-2)');
+  const post = P.find(p => p.role==='post' && p.name==='Center Post');
+  const bounds = [T, bot-T];                                            // horizontal faces inside, for the spacing figures
+  // a shelf sits on its pins: the pin row is its underside
+  for (const r of (m.rows||[])){ g += R(T+1, r-T, w-2*T-2, T, 'var(--board)', line + ' opacity="0.95"'); bounds.push(r-T, r); }
+  if (m.hatRail && (m.rows||[]).length){ const y = m.rows[0] + 70; g += `<line x1="${T+30+pad}" x2="${w-T-30+pad}" y1="${y+40}" y2="${y+40}" stroke="var(--ink-2)" stroke-width="10" stroke-linecap="round"/>` + Tx(w/2, y+45, 'hanging rail', 'middle', 26); }
+  if (post) g += R(w/2-35, T, 70, bot-2*T, 'var(--board)', line);
+  const n = m.nDr || (b.family==='B3D' || b.family==='C3J' ? 3 : 0);
+  const front = (y0,y1,count) => { const gap = 4, fh = (y1-y0-gap*(count+1))/count; let s = ''; for (let i=0;i<count;i++){ const y = y0+gap+i*(fh+gap); s += R(2, y, w-4, fh, 'var(--door)', line) + R(w/2-60, y+28, 120, 10, 'var(--ink-2)', 'rx="5"'); } return s; };
+  if (n && m.internal){
+    const gab = P.find(p => p.name==='Int Gable LH'), Pu = gab ? gab.L : n*220, top = (m.bottomTop ?? bot-T) - Pu, F = 32;
+    g += R(T, top, F, Pu, 'var(--line)', line) + R(w-T-F, top, F, Pu, 'var(--line)', line);             // fillers
+    g += R(T+F, top, T, Pu, 'var(--board)', line) + R(w-T-F-T, top, T, Pu, 'var(--board)', line);       // internal gables
+    g += R(T+F+T, top, w-2*(T+F+T), T, 'var(--board)', line);                                            // internal top
+    const x0 = T+F+T+4, iw = w-2*(T+F+T)-8;
+    for (let i=0;i<n;i++){ const y1 = (m.bottomTop ?? bot-T) - i*220 - 6, y0 = y1 - 220 + 14 + (i===n-1 ? T : 0); g += `<rect x="${x0+pad}" y="${y0+40}" width="${iw}" height="${y1-y0}" fill="var(--door)" fill-opacity="0.7" ${line}/>` + R(w/2-50, y0+24, 100, 9, 'var(--ink-2)', 'rx="4"'); }
+    bounds.push(top);
+    g += Tx(w/2, top-14, '32mm fillers each side', 'middle', 24);
+  } else if (n && con==='robe'){
+    const top = m.packTop - T; bounds.push(top);
+    g += R(T, top, w-2*T, T, 'var(--board)', line);
+    g += front(top, bot, n);
+  } else if (n){
+    g += front(0, bot, n);
+  }
+  // spacing between the horizontal panels inside (shows the shelves are spread evenly)
+  if (!(n && !m.internal)) {
+    const ys = [...new Set(bounds.map(v=>Math.round(v*10)/10))].sort((a,b)=>a-b);
+    for (let i=0;i+1<ys.length;i+=2){ const a = ys[i], c = ys[i+1]; if (c-a > 60) g += Tx(w+12, (a+c)/2+10, Math.round(c-a), 'start', 28, 'var(--muted)'); }
+  }
+  g += Tx(w/2, -12, w + ' wide') + `<text x="${pad-16}" y="${(h/2+40).toFixed(1)}" font-size="34" fill="var(--ink-2)" font-family="JetBrains Mono,monospace" text-anchor="middle" transform="rotate(-90 ${pad-16} ${(h/2+40).toFixed(1)})">${h} high</text>`;
+  return g + '</svg>';
+}
+function viewCaption(b){
+  const o = b.options, m = b.meta || {}, P = b.parts;
+  const sh = (m.rows||[]).length, n = m.nDr || 0;
+  const bits = [];
+  if (sh) bits.push(sh + (sh===1 ? ' shelf' : ' shelves'));
+  if (n) bits.push(n + (m.internal ? ' internal' : ' external') + (n===1 ? ' drawer' : ' drawers'));
+  if (m.hatRail) bits.push('hanging rail');
+  if (m.legs) bits.push('legs ' + m.legs + (m.floor && m.floor!=='none' ? ', ' + ({L:'LH gable',R:'RH gable',both:'both gables'})[m.floor] + ' to the floor' : ''));
+  return 'Front view, doors off' + (bits.length ? ': ' + bits.join(', ') : '');
+}
+function renderInv(){
+  const list = Object.values(inv).sort((a,b)=>(CATS.indexOf(a.category)-CATS.indexOf(b.category)) || a.code.localeCompare(b.code));
+  $('invRows').innerHTML = list.length ? list.map(i => { const p = itemParams(i); return `<tr>
+    <td class="mono"><b>${esc(i.code)}</b></td><td>${esc(i.name)}</td><td>${esc(i.category)}</td><td class="mono">${p.w} × ${p.h} × ${p.d}</td>
+    <td class="num">${+i.price ? money(i.price) : '—'}</td>
+    <td>${isStandard(i.code) ? '<span class="chip done">Matches Cabinet Vision</span>' : '<span class="chip">Your rules</span>'}</td>
+    <td><div class="acts"><button class="b sm" type="button" data-edit="${esc(i.code)}">Edit</button><button class="b sm" type="button" data-del="${esc(i.code)}">${ui.armed===i.code?'Confirm remove':'Remove'}</button></div></td></tr>`; }).join('')
+    : `<tr><td colspan="7"><div class="empty">The inventory is empty. Add your first cabinet above, or <button class="b sm" type="button" id="seedStd">add the 9 standard cabinets</button></div></td></tr>`;
+  const sd = $('seedStd'); if (sd) sd.onclick = seedStandard;
+}
+async function seedStandard(){
+  for (const [code, s] of Object.entries(STANDARD)) await put('inventory', code, { code, name:s.name, category:s.category, price:0, active:true });
+}
+$('invForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const f = formItem();
+  if (!/^[A-Z0-9][A-Z0-9-]{1,19}$/.test(f.code)){ $('invMsg').textContent = 'Use 2 to 20 capital letters, numbers or dashes for the code.'; return; }
+  if (!f.name){ $('invMsg').textContent = 'Give the cabinet a name customers will recognise.'; return; }
+  let doc;
+  if (isStandard(f.code)) doc = { code:f.code, name:f.name, category:f.category, price:f.price, active:true };
+  else {
+    const keep = E.customCabinets(); E.setCustomCabinets([]);
+    const clash = E.parseCode(f.code); E.setCustomCabinets(keep);
+    if (clash){ $('invMsg').textContent = `${f.code} is a standard code with fixed drilling. Pick another code.`; return; }
+    doc = Object.assign({ code:f.code, name:f.name, category:f.category, price:f.price, active:true }, E.sanitizeCustom(f));
+  }
+  try { await put('inventory', f.code, doc); $('invMsg').textContent = `Saved ${f.code}. It's in the shop now.`; }
+  catch(err){ $('invMsg').textContent = `Couldn't save (${err && err.message || err}). Your entries are still in the form.`; }
+});
+$('invForm').addEventListener('input', e => { if (e.target.id==='iCon'){ const d = CON_DEFAULTS[$('iCon').value]; $('iH').value=d.h; $('iD').value=d.d; $('iDoors').value=d.doors; $('iShelves').value=d.shelves; $('iDrawers').value=d.drawers; } syncInvForm(); previewItem(); });
+$('iNew').onclick = () => { fillItem(Object.assign({code:'', name:'', category:CATS[0], price:'', construction:'base', w:600}, CON_DEFAULTS.base)); $('invMsg').textContent=''; };
+$('invRows').addEventListener('click', async e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.edit){ fillItem(inv[b.dataset.edit]); $('invMsg').textContent = `Editing ${b.dataset.edit}.`; window.scrollTo({top:0, behavior:'smooth'}); }
+  if (b.dataset.del){
+    if (ui.armed !== b.dataset.del){ ui.armed = b.dataset.del; renderInv(); return; }
+    ui.armed = null;
+    try { await del('inventory', b.dataset.del); $('invMsg').textContent = `Removed ${b.dataset.del} from the shop. Orders already placed keep it.`; }
+    catch(err){ $('invMsg').textContent = `Couldn't remove: ${err.message||err}`; renderInv(); }
+  }
+});
+
+/* ---------- navigation ---------- */
+function go(view){
+  if (!S.staff && (view==='workshop'||view==='inventory')) view = 'shop';
+  ui.view = view;
+  document.querySelectorAll('[data-view]').forEach(s => { s.hidden = s.dataset.view !== view; });
+  document.querySelectorAll('nav [data-go]').forEach(b => b.setAttribute('aria-current', b.dataset.go===view ? 'page' : 'false'));
+  try { if (location.hash !== '#' + view) history.replaceState(null, '', '#' + view); } catch(e){}
+}
+document.querySelector('nav').addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (b) go(b.dataset.go); });
+window.addEventListener('hashchange', () => { const v = location.hash.slice(1); if (['shop','basket','workshop','inventory'].includes(v)) go(v); });
+
+function renderAll(){ syncEngine(); renderShop(); renderBasket(); renderInv(); renderOrders(); $('nextJob').value = meta.nextJob; }
+
+async function start(){
+  fillItem(Object.assign({code:'', name:'', category:CATS[0], price:'', construction:'base', w:600}, CON_DEFAULTS.base));
+  const v = location.hash.slice(1); go(['shop','basket','workshop','inventory'].includes(v) ? v : 'shop');
+  renderAll();
+  let db = null, user = null;
+  const inClaude = !!(window.claude && window.claude.use);
+  if (inClaude){
+    try { [db, user] = await Promise.all([window.claude.use('db'), window.claude.use('user')]); } catch(e){}
+  }
+  if (db){
+    S.db = db;
+    S.staff = user ? !!(await user.canEdit()) : false;
+    try { S.me = user && user.id ? await user.id() : null; } catch(e){ S.me = null; }
+    if (!S.me){ S.db = null; db = null; }
+    if (!S.staff) document.querySelectorAll('.staff').forEach(b => b.hidden = true);
+    showMode(S.db ? '' : "Couldn't identify you, so everything here is saved in this browser only.", !S.db);
+    if (!S.staff && (ui.view==='workshop'||ui.view==='inventory')) go('shop');
+  } else {
+    showMode(inClaude
+      ? 'Sign in to Claude to place real orders. Until then everything here is saved in this browser only.'
+      : 'Demo mode: inventory and orders are saved in this browser only. Connect a database before taking real orders.', true);
+  }
+  watch('inventory', m => { inv = m; renderAll(); });
+  if (S.staff) watch('orders', m => {
+    orderDocs = m; orders = {};
+    for (const [docId, d] of Object.entries(m)) for (const o of (d && d.orders) || []) orders[o.id] = Object.assign({}, o, { _doc: docId });
+    renderOrders();
+  });
+  if (S.staff) watch('meta', m => { meta = Object.assign({nextJob:5}, m.settings || {}); $('nextJob').value = meta.nextJob; renderOrderDetail(); });
+}
+start();
+</script>
+
+</body></html>
