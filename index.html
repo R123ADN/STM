@@ -191,6 +191,7 @@ td.num,th.num{text-align:right}
     <div>
       <h1>Inventory</h1>
       <p class="lead">The cabinets customers can order. Standard cabinets use the drilling rules proven against your Cabinet Vision files. Add your own from the five construction types; the parts list updates as you type.</p>
+      <div class="row"><button class="b" type="button" id="expInv">Export inventory for index.html</button><span class="msg" id="expMsg" role="status"></span></div>
     </div>
     <div class="invwrap"><div class="invleft">
     <form class="invform" id="invForm" autocomplete="off">
@@ -1631,6 +1632,12 @@ const STANDARD = {
 };
 const isStandard = code => Object.prototype.hasOwnProperty.call(STANDARD, code);
 
+/* ---------- starting inventory saved in this file ----------
+   Everyone who opens the site sees these cabinets. To update: Inventory > "Export inventory",
+   paste over the next line, then commit and push. Changes made in a browser are layered on top. */
+const SEED_INVENTORY = {};
+const withSeed = m => { const out = Object.assign({}, SEED_INVENTORY, m); for (const k of Object.keys(out)) if (out[k] && out[k].removed) delete out[k]; return out; };
+
 /* ---------- storage: shared database inside Claude, browser storage when hosted elsewhere ---------- */
 const local = {
   read(c){ try { return JSON.parse(localStorage.getItem('ecp-' + c)) || {}; } catch(e){ return {}; } },
@@ -2251,10 +2258,21 @@ $('invRows').addEventListener('click', async e => {
   if (b.dataset.del){
     if (ui.armed !== b.dataset.del){ ui.armed = b.dataset.del; renderInv(); return; }
     ui.armed = null;
-    try { await del('inventory', b.dataset.del); $('invMsg').textContent = `Removed ${b.dataset.del} from the shop. Orders already placed keep it.`; }
+    try { if (!S.db && SEED_INVENTORY[b.dataset.del]) await put('inventory', b.dataset.del, { code:b.dataset.del, removed:true }); else await del('inventory', b.dataset.del); $('invMsg').textContent = `Removed ${b.dataset.del} from the shop. Orders already placed keep it.`; }
     catch(err){ $('invMsg').textContent = `Couldn't remove: ${err.message||err}`; renderInv(); }
   }
 });
+
+$('expInv').onclick = async () => {
+  const text = 'const SEED_INVENTORY = ' + JSON.stringify(inv, null, 1) + ';';
+  const n = Object.keys(inv).length;
+  try { await navigator.clipboard.writeText(text); $('expMsg').textContent = `Copied ${n} cabinets. In index.html replace the line "const SEED_INVENTORY = {};" with it, then commit and push.`; }
+  catch(e){
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], {type:'text/plain'})); a.download = 'inventory-seed.txt';
+    document.body.appendChild(a); a.click(); a.remove();
+    $('expMsg').textContent = `Downloaded inventory-seed.txt (${n} cabinets). Paste its contents over the line "const SEED_INVENTORY = {};" in index.html, then commit and push.`;
+  }
+};
 
 /* ---------- navigation ---------- */
 function go(view){
@@ -2291,7 +2309,7 @@ async function start(){
       ? 'Sign in to Claude to place real orders. Until then everything here is saved in this browser only.'
       : 'Demo mode: inventory and orders are saved in this browser only. Connect a database before taking real orders.', true);
   }
-  watch('inventory', m => { inv = m; renderAll(); });
+  watch('inventory', m => { inv = S.db ? m : withSeed(m); renderAll(); });
   if (S.staff) watch('orders', m => {
     orderDocs = m; orders = {};
     for (const [docId, d] of Object.entries(m)) for (const o of (d && d.orders) || []) orders[o.id] = Object.assign({}, o, { _doc: docId });
