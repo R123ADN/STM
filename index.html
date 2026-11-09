@@ -1305,6 +1305,7 @@ td.num,th.num{text-align:right}
    */
   function nestOrder(parts, opts = {}) {
     const o = Object.assign({}, DEFAULTS, opts);
+    if (opts.tool && opts.gap === undefined) o.gap = r3(opts.tool + 3);   // router diameter + 3mm between parts
     const job = String(o.job || 'R00').toUpperCase();
     const groups = new Map();
     for (const p of parts) {
@@ -1347,7 +1348,7 @@ td.num,th.num{text-align:right}
         const name = (opts.sheetName || defaultSheetName)(job, materialNo, i + 1);
         out.push({
           name, material: key.split('|')[0], T: +key.split('|')[1], materialNo, sheetNo: i + 1,
-          sheetL: o.sheetL, sheetW: o.sheetW,
+          sheetL: o.sheetL, sheetW: o.sheetW, tool: o.tool,
           offcut: offcutOf(biggest(placed.free), binW, binH, o),
           placements: placed.map((pl) => {
             const u0 = r3(o.margin + pl.x), v0 = r3(o.margin + pl.y);
@@ -1514,11 +1515,12 @@ td.num,th.num{text-align:right}
   }
 
   function toNC(sheet, opts = {}) {
-    const o = Object.assign({}, DEFAULTS, opts);
+    const o = Object.assign({}, DEFAULTS, sheet.tool ? { tool: sheet.tool } : {}, opts);
     const T = sheet.T;
     const R = o.tool / 2;
     const L = [
       '//' + sheet.name,
+      '//ROUTER DIAMETER:' + nc(o.tool),
       `//DX=${nc(sheet.sheetW)}DY=${nc(sheet.sheetL)}DZ=${nc(T)}`,
       '//MATERIAL : ' + sheet.material,
       '//TEXTURE:',
@@ -1811,7 +1813,10 @@ function renderOrderDetail(){
   let parts = []; try { parts = buildParts(o); } catch(e){}
   const drilled = parts.filter(p=>p.program).length;
   const area = parts.reduce((a,p)=>a + p.L*p.W, 0) / 1e6;
-  let nest = []; try { nest = NE.nestOrder(parts, { job:o.job || 'R00' }); } catch(e){}
+  // a new order is only nested once the router diameter has been entered and Optimise pressed
+  const isNew = o.status === 'new';
+  const optDia = isNew ? (ui.opt && ui.opt.id === o.id ? ui.opt.dia : null) : (+o.routerDia || 12);
+  let nest = []; if (optDia) try { nest = NE.nestOrder(parts, { job:o.job || 'R00', tool:optDia }); } catch(e){}
   const sheets = nest.length;
   const c = o.customer || {};
   $('orderDetail').innerHTML = `
@@ -1824,18 +1829,34 @@ function renderOrderDetail(){
       ${(o.items||[]).map(x=>`<tr><td><b>${esc(x.name)}</b> <span class="mono" style="color:var(--muted)">${esc(x.code)}</span></td><td>${x.hinge ? (x.hinge==='L'?'Left':'Right') : '—'}</td><td class="num">${x.qty}</td></tr>`).join('')}
     </tbody></table></div>
     ${missing.length ? `<div class="note warn">These codes are no longer in the inventory, so they're left out of the machine files: ${missing.map(esc).join(', ')}</div>` : ''}
-    <div class="stats"><div><b>${parts.length}</b><span>panels</span></div><div><b>${drilled}</b><span>drilling programs</span></div><div><b>${area.toFixed(1)} m²</b><span>board</span></div><div><b>${sheets}</b><span>sheets 2800 × 2070</span></div></div>
+    <div class="stats"><div><b>${parts.length}</b><span>panels</span></div><div><b>${drilled}</b><span>drilling programs</span></div><div><b>${area.toFixed(1)} m²</b><span>board</span></div><div><b>${optDia ? sheets : '—'}</b><span>sheets 2800 × 2070</span></div></div>
     <div class="row">
-      ${o.status==='new' ? `<label class="f" for="jobNo" style="flex:0 1 170px">Job number (from sales)<input id="jobNo" maxlength="8" autocomplete="off" value="${esc(ui.jobNo ?? jobCode(meta.nextJob))}"></label><button class="b primary" type="button" id="relBtn">Release to production</button>` : ''}
+      ${isNew ? `<label class="f" for="routerDia" style="flex:0 1 170px">Router diameter (mm)<input id="routerDia" type="number" step="0.01" min="8" max="20" list="routerOpts" value="${esc(ui.routerDia ?? meta.routerDia ?? 12)}"><datalist id="routerOpts"><option value="12"></option><option value="11.7"></option><option value="18"></option></datalist></label><button class="b" type="button" id="optBtn">Optimise</button>
+      <label class="f" for="jobNo" style="flex:0 1 170px">Job number (from sales)<input id="jobNo" maxlength="8" autocomplete="off" value="${esc(ui.jobNo ?? jobCode(meta.nextJob))}"></label><button class="b primary" type="button" id="relBtn"${optDia ? '' : ' disabled'}>Release to production</button>` : ''}
       ${o.job ? `<button class="b primary" type="button" id="dlBtn">Download machine files (.zip)</button>` : ''}
       ${o.status==='released' ? `<button class="b" type="button" id="doneBtn">Mark cut and drilled</button>` : ''}
       <button class="b" type="button" id="delOrd">${ui.armed===o.id ? 'Confirm delete' : 'Delete order'}</button>
     </div>
-    <p class="msg" id="wsMsg" role="status">${o.job ? '' : 'Type the job number the sales team booked. File names, program names and barcodes use it, e.g. ' + esc((ui.jobNo || jobCode(meta.nextJob)).toLowerCase()) + 'b0001 and ' + esc((ui.jobNo || jobCode(meta.nextJob)).toUpperCase()) + '0101N.'}</p>
-    ${nest.length ? `<h2>Sheets</h2><div class="sheets">${nest.map(sh=>`<figure>${NE.sheetSvg(sh,{width:520})}<figcaption><span class="mono">${esc(o.job ? sh.name : 'Sheet ' + sh.sheetNo)}</span> · ${sh.placements.length} parts · ${Math.round(sh.placements.reduce((a,q)=>a+q.part.L*q.part.W,0)/(sh.sheetL*sh.sheetW)*100)}% used${sh.offcut ? ` · offcut ${sh.offcut.L} × ${sh.offcut.W}` : ''}</figcaption></figure>`).join('')}</div><p class="hint">Yellow is where the label goes. Numbers are the cutting and labelling order.</p>` : ''}
+    <p class="msg" id="wsMsg" role="status">${o.job ? '' : (optDia ? `Optimised for a ${optDia}mm router. ` : 'Enter the router diameter and press Optimise, then release. ') + 'Type the job number the sales team booked. File names, program names and barcodes use it, e.g. ' + esc((ui.jobNo || jobCode(meta.nextJob)).toLowerCase()) + 'b0001 and ' + esc((ui.jobNo || jobCode(meta.nextJob)).toUpperCase()) + '0101N.'}</p>
+    ${nest.length ? `<h2>Sheets</h2><div class="sheets">${nest.map(sh=>`<figure>${NE.sheetSvg(sh,{width:520})}<figcaption><span class="mono">${esc(o.job ? sh.name : 'Sheet ' + sh.sheetNo)}</span> · ${sh.placements.length} parts · ${Math.round(sh.placements.reduce((a,q)=>a+q.part.L*q.part.W,0)/(sh.sheetL*sh.sheetW)*100)}% used${sh.offcut ? ` · offcut ${sh.offcut.L} × ${sh.offcut.W}` : ''}</figcaption></figure>`).join('')}</div><p class="hint">Cut with a ${optDia}mm router. Yellow is where the label goes. Numbers are the cutting and labelling order.</p>` : ''}
     ${o.job ? `<h2>Labels</h2><div class="labels">${parts.slice(0,12).map(p=>`<div>${LB.labelSvg(p)}</div>`).join('')}</div>${parts.length>12?`<p class="hint">Showing 12 of ${parts.length}. All of them are in the download.</p>`:''}` : ''}`;
   const on = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
   on('relBtn', () => release(o));
+  const rd = $('routerDia');
+  const diaOk = () => { const v = Math.round(+rd.value * 100) / 100; return v >= 8 && v <= 20 ? v : null; };
+  if (rd){
+    rd.oninput = () => {   // a new diameter means the layout must be redone
+      ui.routerDia = rd.value; ui.opt = null;
+      const rb = $('relBtn'); if (rb) rb.disabled = true;
+      const m = $('wsMsg'); if (m) m.textContent = 'Router diameter changed. Press Optimise to redo the layout.';
+      const sb = document.querySelector('#orderDetail .sheets'); if (sb) sb.style.opacity = '.35';
+    };
+    on('optBtn', () => {
+      const v = diaOk();
+      if (!v){ $('wsMsg').textContent = 'Enter the router diameter between 8 and 20mm, e.g. 12 or 11.7.'; return; }
+      ui.routerDia = String(v); ui.opt = { id:o.id, dia:v }; renderOrderDetail();
+    });
+  }
   const jn = $('jobNo'); if (jn) jn.oninput = () => { ui.jobNo = jn.value; const m = $('wsMsg'); const v = cleanJob(jn.value); if (m) m.textContent = v ? 'Files will be named ' + v.toLowerCase() + 'b0001, ' + v + '0101N …' : ''; };
   on('dlBtn', () => downloadFiles(o));
   on('doneBtn', () => updateOrder(o, {status:'done'}).catch(err => { $('wsMsg').textContent = `Couldn't update: ${err.message||err}`; }));
@@ -1860,10 +1881,12 @@ async function release(o){
   const job = typed || jobCode(n);
   const clash = Object.values(orders).find(x => x.id !== o.id && x.job && x.job.toUpperCase() === job);
   if (clash){ $('wsMsg').textContent = `Job ${job} is already used by ${(clash.customer&&clash.customer.name)||'another order'}. Use a different number.`; return; }
+  if (!(ui.opt && ui.opt.id === o.id)){ $('wsMsg').textContent = 'Enter the router diameter and press Optimise first.'; return; }
+  const routerDia = ui.opt.dia;
   try {
-    if (job === jobCode(n)) await put('meta', 'settings', Object.assign({}, meta, { nextJob: n >= 99 ? 1 : n + 1 }));
-    ui.jobNo = null;
-    await updateOrder(o, { status:'released', job, releasedAt:new Date().toISOString() });
+    await put('meta', 'settings', Object.assign({}, meta, { routerDia }, job === jobCode(n) ? { nextJob: n >= 99 ? 1 : n + 1 } : {}));
+    ui.jobNo = null; ui.opt = null;
+    await updateOrder(o, { status:'released', job, routerDia, releasedAt:new Date().toISOString() });
   } catch(err){ $('wsMsg').textContent = `Couldn't release: ${err.message||err}`; }
 }
 $('nextJob').addEventListener('change', () => { const n = Math.max(1, Math.min(99, Math.round(+$('nextJob').value||1))); put('meta','settings',Object.assign({}, meta, {nextJob:n})).catch(()=>{}); });
@@ -2031,7 +2054,7 @@ async function downloadFiles(o){
     }
     // nesting: one cutting program, label-point file and label set per sheet
     const nesting = top.folder('NC');
-    const sheetsOut = NE.nestOrder(parts, { job });
+    const sheetsOut = NE.nestOrder(parts, { job, tool: +o.routerDia || 12 });
     for (const sh of sheetsOut){
       // same pattern as the Cabinet Vision nesting folder: <sheet>.NC beside a <sheet>/ folder holding that sheet's label points and labels
       nesting.file(sh.name + '.NC', NE.toNC(sh));
