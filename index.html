@@ -5,7 +5,7 @@
 <style>
 /* Layout: top bar with the four areas (Shop, Basket, Workshop, Inventory); each area is one working column. Tokens follow the Easy Cab Builder app. */
 :root{
-  --bg:#F6F4EF; --surface:#FFFFFF; --surface-2:#F0EDE6; --line:#E3DED3; --line-2:#D3CDBF;
+  --bg:#FFFFFF; --surface:#FFFFFF; --surface-2:#F0EDE6; --line:#E3DED3; --line-2:#D3CDBF;
   --ink:#1D201C; --ink-2:#4A4E46; --muted:#7F7B70;
   --olive:#56643E; --olive-ink:#FFFFFF; --olive-soft:#E5E9D9;
   --oak:#A8764A; --oak-soft:#F3E8DA;
@@ -16,23 +16,23 @@
   --r:12px;
 }
 
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+@media (prefers-color-scheme:dark){:root[data-theme="dark"]{
   color-scheme:dark;
-  --bg:#121411; --surface:#1A1D19; --surface-2:#21251F; --line:#2C3129; --line-2:#3A4036;
-  --ink:#ECE9E1; --ink-2:#C3C0B6; --muted:#8E8B81;
-  --olive:#A3B383; --olive-ink:#141712; --olive-soft:#28301F;
-  --oak:#D5A677; --oak-soft:#342A1F;
-  --ok:#7DC293; --ok-soft:#1D3224; --warn:#E2AA5C; --warn-soft:#382C19; --bad:#E68A76; --bad-soft:#3A221D; --info:#8CB0DB; --info-soft:#1C2939;
-  --board:#2B2620; --board-line:#6B5E4A; --door:#2F3727;
+  --bg:#2A2E27; --surface:#353A32; --surface-2:#40463C; --line:#4C5346; --line-2:#5C6455;
+  --ink:#ECE9E1; --ink-2:#C3C0B6; --muted:#A9A69B;
+  --olive:#A3B383; --olive-ink:#141712; --olive-soft:#434C33;
+  --oak:#D5A677; --oak-soft:#4E4030;
+  --ok:#7DC293; --ok-soft:#2F4A38; --warn:#E2AA5C; --warn-soft:#524228; --bad:#E68A76; --bad-soft:#563630; --info:#8CB0DB; --info-soft:#2E4259;
+  --board:#4A4237; --board-line:#8A7B64; --door:#485239;
 }}
 :root[data-theme="dark"]{
   color-scheme:dark;
-  --bg:#121411; --surface:#1A1D19; --surface-2:#21251F; --line:#2C3129; --line-2:#3A4036;
-  --ink:#ECE9E1; --ink-2:#C3C0B6; --muted:#8E8B81;
-  --olive:#A3B383; --olive-ink:#141712; --olive-soft:#28301F;
-  --oak:#D5A677; --oak-soft:#342A1F;
-  --ok:#7DC293; --ok-soft:#1D3224; --warn:#E2AA5C; --warn-soft:#382C19; --bad:#E68A76; --bad-soft:#3A221D; --info:#8CB0DB; --info-soft:#1C2939;
-  --board:#2B2620; --board-line:#6B5E4A; --door:#2F3727;
+  --bg:#2A2E27; --surface:#353A32; --surface-2:#40463C; --line:#4C5346; --line-2:#5C6455;
+  --ink:#ECE9E1; --ink-2:#C3C0B6; --muted:#A9A69B;
+  --olive:#A3B383; --olive-ink:#141712; --olive-soft:#434C33;
+  --oak:#D5A677; --oak-soft:#4E4030;
+  --ok:#7DC293; --ok-soft:#2F4A38; --warn:#E2AA5C; --warn-soft:#524228; --bad:#E68A76; --bad-soft:#563630; --info:#8CB0DB; --info-soft:#2E4259;
+  --board:#4A4237; --board-line:#8A7B64; --door:#485239;
 }
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font:500 14.5px/1.55 var(--font);-webkit-font-smoothing:antialiased}
@@ -207,6 +207,7 @@ td.num,th.num{text-align:right}
       <label class="f" for="iDrawers">Drawers<input id="iDrawers" type="number" min="0" max="6"></label>
       <label class="f" for="iDrType" style="flex:2 1 230px">Drawer type<select id="iDrType"><option value="external">External: runners drilled in the gables</option><option value="internal">Internal: drawer cabinet inside, 32mm fillers</option></select><span id="drHint" class="hint" style="font-size:12px"></span></label>
       <label class="f" for="iSupport">Stands on<select id="iSupport"><option value="plinth">Plinth</option><option value="legs100">Legs 100mm</option><option value="legs150">Legs 150mm</option></select></label>
+      <label class="f" for="iSink">Sink unit<select id="iSink"><option value="no">No</option><option value="yes">Yes: vertical front rail 70mm</option></select></label>
       <label class="f" for="iPlinth">Plinth height<input id="iPlinth" type="number" min="50" max="200"></label>
       <label class="f" for="iFloor">Gables to the floor<select id="iFloor"><option value="none">None</option><option value="L">LH gable</option><option value="R">RH gable</option><option value="both">Both gables</option></select></label>
       <div class="row" style="flex:1 1 100%">
@@ -478,7 +479,8 @@ td.num,th.num{text-align:right}
     const backFront = r1(d - 68.2);                 // 50mm service void behind the back
     const baseD = r1(backFront - FRONT);
     const shelfD = r1(backFront - FRONT - 73);
-    const railJ = jointPositions(160, { narrow: true });
+    const railJ = jointPositions(o.sink ? 70 : 160, { narrow: true });
+    const sinkRailJ = railJ;
     const baseJ = jointPositions(baseD);
     const rows = f.shelfRows || (f.shelves ? shelfRows(h, f.shelves) : []);
     const twoDoors = o.pair ?? (w > 600);
@@ -504,7 +506,10 @@ td.num,th.num{text-align:right}
         centrePins: centre && rows.length ? pinXs(rows, 3) : null,
         file: Wi >= 700 ? 'wide' : undefined,
       }),
-      part('Rail', Wi, 160, horizontalPanelHoles(Wi, 160, railJ, true), { front: 'E', back: 'I' }, { role: 'rail' }),
+      // sink unit: a 70mm rail stood on edge across the front instead of the 160 horizontal rail
+      o.sink
+        ? part('Rail', Wi, 70, horizontalPanelHoles(Wi, 70, sinkRailJ, true), { front: 'E', back: 'I' }, { role: 'rail' })
+        : part('Rail', Wi, 160, horizontalPanelHoles(Wi, 160, railJ, true), { front: 'E', back: 'I' }, { role: 'rail' }),
       part('Base', Wi, baseD, [
         ...legPlates(Wi, baseD),
         ...horizontalPanelHoles(Wi, baseD, baseJ, false),
@@ -512,7 +517,7 @@ td.num,th.num{text-align:right}
     ];
     for (let i = 0; i < rows.length; i++) parts.push(shelfPanel(Wi - 1, shelfD, centre));
     if (twoDoors && f.doors) parts.push(part('Center Post', h - 2 * T, 70, [], {}, { role: 'post' }));
-    parts.meta = { rows };
+    parts.meta = { rows, sink: !!o.sink };
     return parts;
   }
 
@@ -854,7 +859,7 @@ td.num,th.num{text-align:right}
           const b = parts.find((p) => p.role === 'base');
           parts.push(...internalDrawerUnit(b.L, b.W, nInt));
         }
-        parts.meta = Object.assign(parts.meta || {}, { internal, nDr: internal ? nInt : o.drawers || 0, bottomTop: r1(o.h - T) });
+        parts.meta = Object.assign(parts.meta || {}, { internal, nDr: internal ? nInt : o.drawers || 0, bottomTop: r1(o.h - T), legs: o.legH === 150 ? 150 : 100 });
         return parts;
       }
       if (o.construction === 'wall') return FAMILIES.WM.build(Object.assign(base, { hingeXs: hingesFor(o.h), shelves: o.shelves || 0, shelfRows: evenRows(T, r1(o.h - T), o.shelves || 0) }));
@@ -919,6 +924,7 @@ td.num,th.num{text-align:right}
       drawerType: c.drawerType === 'internal' ? 'internal' : 'external',
       support: c.support === 'legs' ? 'legs' : 'plinth',          // wardrobes: plinth or legs
       legH: +c.legH === 150 ? 150 : 100,
+      sink: c.sink === true && c.construction === 'base',
       floorGables: ['L', 'R', 'both'].includes(c.floorGables) ? c.floorGables : 'none',
     };
   }
@@ -1668,7 +1674,7 @@ function elevation(i){
   const w = W*s, h = H*s, pad = 6;
   const robeLegs = p.construction==='robe' && p.support==='legs';
   const plinth = robeLegs ? (+p.legH||100)*s : p.construction==='robe'||p.construction==='plinth' ? (p.plinth||100)*s : 0;
-  const legs = p.construction==='base'||p.construction==='tall' ? 100*s : 0;
+  const legs = p.construction==='base' ? (+p.legH===150 ? 150 : 100)*s : p.construction==='tall' ? 100*s : 0;
   const vbH = h + pad*2 + legs;
   let g = `<svg viewBox="0 0 ${(w+pad*2).toFixed(1)} ${vbH.toFixed(1)}" role="img" aria-label="Front view of ${esc(p.name)}">`;
   const x0 = pad, y0 = pad, bodyH = h - plinth;
@@ -1920,6 +1926,7 @@ function cabinetSpec(b){
   else if (m.nDr) bits.push(m.nDr + (m.internal ? ' internal' : ' external') + ' drawer' + (m.nDr>1?'s':'') + (m.internal ? ' (32mm fillers)' : ''));
   const sh = (m.rows||[]).length; if (sh) bits.push(sh + ' shel' + (sh>1?'ves':'f'));
   if (m.hatRail) bits.push('hanging rail');
+  if (m.sink) bits.push('sink unit: vertical rail 70');
   if (m.legs) bits.push('legs ' + m.legs + (m.floor && m.floor!=='none' ? ', ' + ({L:'LH gable',R:'RH gable',both:'both gables'})[m.floor] + ' to floor' : ''));
   else if (o.plinth && (o.construction==='robe' || o.construction==='plinth' || b.family==='SHR' || b.family==='C3J')) bits.push('plinth ' + o.plinth);
   return bits.join(', ');
@@ -2026,20 +2033,22 @@ async function downloadFiles(o){
     const nesting = top.folder('NC');
     const sheetsOut = NE.nestOrder(parts, { job });
     for (const sh of sheetsOut){
+      // same pattern as the Cabinet Vision nesting folder: <sheet>.NC beside a <sheet>/ folder holding that sheet's label points and labels
       nesting.file(sh.name + '.NC', NE.toNC(sh));
       const pts = NE.labelPoints(sh);
-      nesting.file(sh.name + '.pts', LB.toPts(pts));
+      const sheetDir = nesting.folder(sh.name);
+      sheetDir.file(sh.name + '.pts', LB.toPts(pts));
       let n = 0;
       for (const lp of pts){
         const pl = sh.placements.find(q => q.part === lp.part);
-        labels.file(LB.sheetLabelFile(sh.name, ++n), await svgToJpeg(LB.labelSvg(lp.part, { rotate: pl.along === 'v' ? 90 : 0 })));
+        sheetDir.file(LB.sheetLabelFile(sh.name, ++n), await svgToJpeg(LB.labelSvg(lp.part, { rotate: pl.along === 'v' ? 90 : 0 })));
       }
       msg(`Nesting sheet ${sh.sheetNo} of ${sheetsOut.length}…`);
     }
     msg('Making the paperwork PDF…');
     top.file(job + ' paperwork.pdf', await jobPackPdf(o, parts, sheetsOut));
     top.file(job + '-cutlist.csv', rows.map(r=>r.map(csvCell).join(',')).join('\r\n') + '\r\n');
-    top.file('README.txt', [`Job ${job} for ${(o.customer&&o.customer.name)||'customer'}`, `${parts.length} panels, ${parts.filter(p=>p.program).length} drilling programs, ${sheetsOut.length} sheets.`, '', 'NC/      SOPH MSK2822A nesting: per sheet (e.g. ' + (sheetsOut[0] ? sheetsOut[0].name : job + '0101N') + ') the .NC cutting program and the .pts label positions', 'Labels/  sheet labels in .pts order (' + (sheetsOut[0] ? sheetsOut[0].name : '') + '_0001.jpg ...) and the same labels per part (' + job.toLowerCase() + 'p0001.jpg ...)', 'MPR/     SOPH MSZ600CR drilling programs, file name = barcode', `${job} paperwork.pdf  job sheet, one page per cabinet (front view, parts, where each part is nested), one page per sheet with all drilling`, `${job}-cutlist.csv  every panel with size, edging and program`].join('\r\n'));
+    top.file('README.txt', [`Job ${job} for ${(o.customer&&o.customer.name)||'customer'}`, `${parts.length} panels, ${parts.filter(p=>p.program).length} drilling programs, ${sheetsOut.length} sheets.`, '', 'NC/      SOPH MSK2822A nesting, one set per sheet (e.g. ' + (sheetsOut[0] ? sheetsOut[0].name : job + '0101N') + '): a folder of that sheet\'s label positions (.pts) and labels in .pts order (' + (sheetsOut[0] ? sheetsOut[0].name : '') + '_0001.jpg ...), with the .NC cutting program beside it. Sheets are numbered in order, so a big job just carries on 0101, 0102 ... 0110 ...', 'Labels/  the same labels per part (' + job.toLowerCase() + 'p0001.jpg ...)', 'MPR/     SOPH MSZ600CR drilling programs, file name = barcode', `${job} paperwork.pdf  job sheet, one page per cabinet (front view, parts, where each part is nested), one page per sheet with all drilling`, `${job}-cutlist.csv  every panel with size, edging and program`].join('\r\n'));
     const blob = await zip.generateAsync({type:'blob'});
     const filename = `${job}.zip`;
     const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
@@ -2060,6 +2069,7 @@ function formItem(){
     drawerType: ($('iCon').value==='robe'||$('iCon').value==='base') ? $('iDrType').value : 'external',
     support: $('iCon').value==='robe' && $('iSupport').value!=='plinth' ? 'legs' : 'plinth',
     legH: $('iSupport').value==='legs150' ? 150 : 100,
+    sink: $('iCon').value==='base' && $('iSink').value==='yes',
     floorGables: $('iCon').value==='robe' && $('iSupport').value!=='plinth' ? $('iFloor').value : 'none' };
 }
 function fillItem(i){
@@ -2068,16 +2078,22 @@ function fillItem(i){
   $('iCon').value = p.construction||'base'; $('iW').value = p.w ?? 600; $('iH').value = p.h ?? 720; $('iD').value = p.d ?? 570;
   $('iDoors').value = p.doors||'none'; $('iShelves').value = p.shelves ?? 0; $('iDrawers').value = p.drawers ?? 0; $('iPlinth').value = p.plinth ?? 100; $('iDrType').value = p.drawerType==='internal' ? 'internal' : 'external';
   $('iSupport').value = p.support==='legs' ? (+p.legH===150 ? 'legs150' : 'legs100') : 'plinth'; $('iFloor').value = p.floorGables || 'none';
+  $('iSink').value = p.sink ? 'yes' : 'no';
   syncInvForm(); previewItem();
 }
 function syncInvForm(){
   const std = isStandard($('iCode').value.trim().toUpperCase());
-  for (const id of ['iCon','iW','iH','iD','iDoors','iShelves','iDrawers','iPlinth','iDrType','iSupport','iFloor']) $(id).disabled = std;
+  for (const id of ['iCon','iW','iH','iD','iDoors','iShelves','iDrawers','iPlinth','iDrType','iSupport','iFloor','iSink']) $(id).disabled = std;
   if (!std){
     const con = $('iCon').value;
     const onLegs = con==='robe' && $('iSupport').value!=='plinth';
     $('iPlinth').disabled = !((con==='robe' && !onLegs)||con==='plinth');
-    $('iSupport').disabled = con!=='robe'; if (con!=='robe') $('iSupport').value = 'plinth';
+    // wardrobes: plinth or legs; base units: 100 or 150 legs only
+    $('iSupport').disabled = !(con==='robe'||con==='base');
+    $('iSupport').options[0].disabled = con==='base';
+    if (con==='base' && $('iSupport').value==='plinth') $('iSupport').value = 'legs100';
+    if (con!=='robe' && con!=='base') $('iSupport').value = 'plinth';
+    $('iSink').disabled = con!=='base'; if (con!=='base') $('iSink').value = 'no';
     $('iFloor').disabled = !onLegs; if (!onLegs) $('iFloor').value = 'none';
     $('iDrawers').disabled = !(con==='base'||con==='plinth'||con==='robe');
     // internal drawers are a cabinet inside a wardrobe; base and plinth units always have external drawers
@@ -2117,7 +2133,7 @@ function cabinetView(b){
   const o = b.options, m = b.meta || {}, P = b.parts, T = E.T;
   const con = b.family==='CUSTOM' ? o.construction : ({BHL:'base',B3D:'base',BCHL:'base',WM:'wall',LM:'tall',SHR:'robe',C3J:'plinth'})[b.family] || 'base';
   const robeLegs = con==='robe' && m.legs ? m.legs : 0;
-  const w = +o.w, h = +o.h, pl = (con==='robe'&&!robeLegs)||con==='plinth' ? +(o.plinth||100) : 0, legs = (con==='base'||con==='tall') ? 100 : 0;
+  const w = +o.w, h = +o.h, pl = (con==='robe'&&!robeLegs)||con==='plinth' ? +(o.plinth||100) : 0, legs = con==='base' ? (+o.legH===150 ? 150 : 100) : con==='tall' ? 100 : 0;
   const bot = pl ? h - pl : robeLegs ? h - robeLegs : h;   // underside of the bottom panel
   const hL = (P.find(p=>p.role==='lhEnd' && !p.inner)||{L:h}).L, hR = (P.find(p=>p.role==='rhEnd' && !p.inner)||{L:h}).L;
   const pad = 70, k = 1/3;                              // mm -> px scale is set by the viewBox
