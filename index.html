@@ -191,20 +191,23 @@ td.num,th.num{text-align:right}
     <div>
       <h1>Inventory</h1>
       <p class="lead">The cabinets customers can order. Standard cabinets use the drilling rules proven against your Cabinet Vision files. Add your own from the five construction types; the parts list updates as you type.</p>
-      <div class="row"><button class="b" type="button" id="expInv">Export inventory for index.html</button><span class="msg" id="expMsg" role="status"></span></div>
     </div>
     <div class="invwrap"><div class="invleft">
     <form class="invform" id="invForm" autocomplete="off">
       <label class="f" for="iCode">Code<input id="iCode" maxlength="20" required placeholder="e.g. SINK800"></label>
       <label class="f" for="iName" style="flex:2 1 200px">Name<input id="iName" maxlength="60" required placeholder="e.g. Sink base unit 800"></label>
-      <label class="f" for="iCat">Category<select id="iCat"></select></label>
+      <label class="f" for="iCat">Category<input id="iCat" list="catList" maxlength="30" placeholder="pick or type a new one"><datalist id="catList"></datalist></label>
       <label class="f" for="iPrice">Price £ (ex VAT)<input id="iPrice" type="number" min="0" step="0.01"></label>
       <label class="f" for="iCon" style="flex:2 1 230px">Construction<select id="iCon"></select></label>
       <label class="f" for="iW">Width<input id="iW" type="number" min="150" max="1200"></label>
       <label class="f" for="iH">Height<input id="iH" type="number" min="200" max="2500"></label>
       <label class="f" for="iD">Depth<input id="iD" type="number" min="250" max="700"></label>
       <label class="f" for="iDoors">Doors<select id="iDoors"><option value="none">No doors</option><option value="single">Single door</option><option value="pair">Pair of doors</option></select></label>
-      <label class="f" for="iShelves">Shelves<input id="iShelves" type="number" min="0" max="8"></label>
+      <label class="f" for="iShelves"><span id="lblShelves">Shelves</span><input id="iShelves" type="number" min="0" max="8"></label>
+      <label class="f" for="iBack">Back<select id="iBack"><option value="yes">With back</option><option value="no">Without back</option></select></label>
+      <label class="f" for="iBaseP">Base<select id="iBaseP"><option value="yes">With base (on legs)</option><option value="no">Without base</option></select></label>
+      <label class="f" for="iFixed">Fixed shelf height<input id="iFixed" type="number" min="0" max="2400" placeholder="0 = none"></label>
+      <label class="f" for="iHinges" style="flex:1 1 200px">Hinge positions from the top (mm)<input id="iHinges" placeholder="100, 750"></label>
       <label class="f" for="iDrawers">Drawers<input id="iDrawers" type="number" min="0" max="6"></label>
       <label class="f" for="iDrType" style="flex:2 1 230px">Drawer type<select id="iDrType"><option value="external">External: runners drilled in the gables</option><option value="internal">Internal: drawer cabinet inside, 32mm fillers</option></select><span id="drHint" class="hint" style="font-size:12px"></span></label>
       <label class="f" for="iSupport">Stands on<select id="iSupport"><option value="plinth">Plinth</option><option value="legs100">Legs 100mm</option><option value="legs150">Legs 150mm</option></select></label>
@@ -214,6 +217,7 @@ td.num,th.num{text-align:right}
       <div class="row" style="flex:1 1 100%">
         <button class="b primary" type="submit">Save cabinet</button>
         <button class="b" type="button" id="iNew">New cabinet</button>
+        <button class="b" type="button" id="iImport" title="Adds the Cab Builder cabinets that are not in the inventory yet. Nothing already here is changed.">Import Cab Builder catalogue</button>
         <span class="msg" id="invMsg" role="status"></span>
       </div>
     </form>
@@ -831,8 +835,68 @@ td.num,th.num{text-align:right}
     tall: 'Tall unit: top and base on legs',
     robe: 'Wardrobe: top, bottom on two plinths',
     plinth: 'Base unit on two plinths: top rail',
+    flex: 'Flexible cabinet: you choose back, base, shelves and hinges',
   };
   const custom = {};
+
+  /**
+   * Flexible cabinet: top, optional base on legs, optional back, adjustable shelves, one optional fixed shelf
+   * (dowels only), and hinge rows at the heights you type (measured from the top of the gable).
+   * Without a back: no back panel, no back holes in the gables, no back screws in the top/base.
+   * Without a base: no base panel, no base holes in the gables, no leg plates, no back screws into the base.
+   */
+  function buildFlex(o) {
+    const { w, h, d } = o;
+    const doors = o.doors || 'none', pair = doors === 'pair';
+    const hasBack = o.hasBack !== false, hasBase = o.hasBase !== false;
+    const Wi = r1(w - 2 * T);
+    const backFront = hasBack ? r1(d - 68.2) : d;          // 50mm service void behind a back
+    const panD = r1(backFront - FRONT);
+    const shelfD = r1(panD - 73);
+    const J = jointPositions(panD);
+    const bottomFace = hasBase ? r1(h - T) : h;
+    const f = +o.fixedShelf;
+    const fixed = f >= 50 && f <= h - T - 50 ? f : 0;      // top of the fixed shelf, measured up from the bottom
+    const fTop = r1(h - fixed);
+    const n = Math.max(0, Math.round(+o.shelves || 0));
+    let rows = [];
+    if (n) {
+      if (!fixed) rows = evenRows(T, bottomFace, n);
+      else {
+        const above = [T, fTop], below = [r1(fTop + T), bottomFace];
+        const z = above[1] - above[0] >= below[1] - below[0] ? above : below;   // the roomier side of the fixed shelf
+        rows = evenRows(z[0], z[1], n);
+      }
+    }
+    const hp = (Array.isArray(o.hingePos) ? o.hingePos : []).filter((x) => x > 20 && x < h - 20);
+    const hingeXs = hp.length ? hp.map(r1) : [100, r1(Math.min(750, h - 100))];
+    const dowelsOnly = { cams: [], dowels: J.cams };
+    const joints = [{ line: SIDE_LINE, jp: J, dowelDepth: 13 }];
+    if (hasBase) joints.push({ line: h - SIDE_LINE, jp: J, dowelDepth: 13 });
+    if (fixed) joints.push({ line: fTop + SIDE_LINE, jp: dowelsOnly, dowelDepth: 12 });
+    const backXs = hasBack ? backJointXs(h, 'top') : [];
+    const sideSpec = {
+      H: h, D: d, front: FRONT, joints,
+      backY: Math.round(backFront + BACK_LINE), backXs,
+      shelves: rows.length ? { xs: rows, pins: 3, yFront: FRONT + 73 + 30, yBack: r1(backFront - 30) } : null,
+      hinges: doors === 'none' ? null : hingeXs,
+      hingeOn: pair ? 'both' : (o.hinge || 'L'),
+    };
+    const parts = [sidePanel('L', sideSpec), sidePanel('R', sideSpec)];
+    if (hasBack) {
+      const screws = backScrewPositions(Wi);
+      parts.push(backPanel(h, Wi, {
+        xs: backXs, screwTop: screws.map((y) => r1(Wi - y)).reverse(), screwBottom: hasBase ? screws : null,
+        centrePins: Wi >= 700 && rows.length ? pinXs(rows, 3) : null,
+      }));
+    }
+    parts.push(part('Top', Wi, panD, horizontalPanelHoles(Wi, panD, J, true), { front: 'E' }, { role: 'top' }));
+    if (hasBase) parts.push(part('Base', Wi, panD, [...legPlates(Wi, panD), ...horizontalPanelHoles(Wi, panD, J, false)], { front: 'E' }, { role: 'base' }));
+    if (fixed) parts.push(part('Fixed Shelf', Wi, panD, horizontalPanelHoles(Wi, panD, dowelsOnly, false), { front: 'E' }, { role: 'fixshelf' }));
+    for (let i = 0; i < rows.length; i++) parts.push(shelfPanel(Wi - 1, shelfD, Wi >= 700));
+    parts.meta = { rows, fixed, hasBack, hasBase, hinges: doors === 'none' ? [] : hingeXs, legs: hasBase ? (o.legH === 150 ? 150 : 100) : 0 };
+    return parts;
+  }
 
   FAMILIES.CUSTOM = {
     label: 'Your cabinet',
@@ -863,6 +927,7 @@ td.num,th.num{text-align:right}
         parts.meta = Object.assign(parts.meta || {}, { internal, nDr: internal ? nInt : o.drawers || 0, bottomTop: r1(o.h - T), legs: o.legH === 150 ? 150 : 100 });
         return parts;
       }
+      if (o.construction === 'flex') return buildFlex(base);
       if (o.construction === 'wall') return FAMILIES.WM.build(Object.assign(base, { hingeXs: hingesFor(o.h), shelves: o.shelves || 0, shelfRows: evenRows(T, r1(o.h - T), o.shelves || 0) }));
       if (o.construction === 'tall') return FAMILIES.LM.build(Object.assign(base, { hingeXs: hingesFor(o.h), shelves: o.shelves || 0, shelfRows: evenRows(T, r1(o.h - T), o.shelves || 0) }));
       if (o.construction === 'robe') {
@@ -910,6 +975,7 @@ td.num,th.num{text-align:right}
     base: { y0: 'E' }, bottom: { y0: 'E' }, top: { yW: 'E' },
     shelf: { y0: 'B', yW: 'I', x0: 'I', xL: 'I' },
     plinth: { y0: 'I', yW: 'I' },
+    fixshelf: { y0: 'E' },
     post: {},
   };
 
@@ -926,6 +992,10 @@ td.num,th.num{text-align:right}
       support: c.support === 'legs' ? 'legs' : 'plinth',          // wardrobes: plinth or legs
       legH: +c.legH === 150 ? 150 : 100,
       sink: c.sink === true && c.construction === 'base',
+      hasBack: c.hasBack !== false && c.hasBack !== 'no',
+      hasBase: c.hasBase !== false && c.hasBase !== 'no',
+      fixedShelf: num(c.fixedShelf, 0, 2400, 0),
+      hingePos: (Array.isArray(c.hingePos) ? c.hingePos : String(c.hingeAt ?? '').split(/[,;\s]+/)).map(Number).filter((n) => Number.isFinite(n) && n > 20 && n < 2500),
       floorGables: ['L', 'R', 'both'].includes(c.floorGables) ? c.floorGables : 'none',
     };
   }
@@ -1053,6 +1123,7 @@ td.num,th.num{text-align:right}
     bottom: { top: 'E' },
     shelf: { top: 'B', left: 'I', right: 'I', bottom: 'I' },
     plinth: { top: 'I', bottom: 'I' },
+    fixshelf: { bottom: 'E' },
     post: {},
   };
 
@@ -1617,7 +1688,10 @@ const esc = v => String(v ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;
 const money = n => '£' + (Math.round((+n || 0) * 100) / 100).toLocaleString('en-GB', {minimumFractionDigits:2, maximumFractionDigits:2});
 const VAT = 0.2;
 const CATS = ['Base units','Drawer units','Wall units','Tall units','Wardrobes','Corner units'];
-const CON_DEFAULTS = { base:{h:720,d:570,doors:'single',shelves:1,drawers:0}, wall:{h:720,d:300,doors:'single',shelves:2,drawers:0}, tall:{h:1970,d:570,doors:'single',shelves:5,drawers:0}, robe:{h:2120,d:570,doors:'pair',shelves:1,drawers:0,drawerType:'external',support:'plinth',floorGables:'none'}, plinth:{h:760,d:570,doors:'none',shelves:0,drawers:3} };
+/** the built-in categories keep their order; categories you type yourself follow, A to Z */
+const catRank = c => { const i = CATS.indexOf(c); return i < 0 ? CATS.length : i; };
+const byCat = (a, b) => (catRank(a.category) - catRank(b.category)) || String(a.category||'').localeCompare(String(b.category||'')) || a.code.localeCompare(b.code);
+const CON_DEFAULTS = { flex:{h:720,d:570,doors:'single',shelves:1,drawers:0}, base:{h:720,d:570,doors:'single',shelves:1,drawers:0}, wall:{h:720,d:300,doors:'single',shelves:2,drawers:0}, tall:{h:1970,d:570,doors:'single',shelves:5,drawers:0}, robe:{h:2120,d:570,doors:'pair',shelves:1,drawers:0,drawerType:'external',support:'plinth',floorGables:'none'}, plinth:{h:760,d:570,doors:'none',shelves:0,drawers:3} };
 // standard cabinets: drilled exactly as in job R04 (Cabinet Vision)
 const STANDARD = {
   BHL600:{name:'Highline base unit 600',category:'Base units',construction:'base',w:600,h:720,d:570,doors:'single',shelves:1,drawers:0},
@@ -1631,12 +1705,6 @@ const STANDARD = {
   BCHL9X9:{name:'L-shape corner base unit 900 × 900',category:'Corner units',construction:'base',w:900,h:720,d:570,doors:'pair',shelves:1,drawers:0},
 };
 const isStandard = code => Object.prototype.hasOwnProperty.call(STANDARD, code);
-
-/* ---------- starting inventory saved in this file ----------
-   Everyone who opens the site sees these cabinets. To update: Inventory > "Export inventory",
-   paste over the next line, then commit and push. Changes made in a browser are layered on top. */
-const SEED_INVENTORY = {};
-const withSeed = m => { const out = Object.assign({}, SEED_INVENTORY, m); for (const k of Object.keys(out)) if (out[k] && out[k].removed) delete out[k]; return out; };
 
 /* ---------- storage: shared database inside Claude, browser storage when hosted elsewhere ---------- */
 const local = {
@@ -1683,7 +1751,7 @@ function elevation(i){
   const w = W*s, h = H*s, pad = 6;
   const robeLegs = p.construction==='robe' && p.support==='legs';
   const plinth = robeLegs ? (+p.legH||100)*s : p.construction==='robe'||p.construction==='plinth' ? (p.plinth||100)*s : 0;
-  const legs = p.construction==='base' ? (+p.legH===150 ? 150 : 100)*s : p.construction==='tall' ? 100*s : 0;
+  const legs = p.construction==='base' ? (+p.legH===150 ? 150 : 100)*s : p.construction==='tall' ? 100*s : p.construction==='flex' && p.hasBase!==false ? (+p.legH===150 ? 150 : 100)*s : 0;
   const vbH = h + pad*2 + legs;
   let g = `<svg viewBox="0 0 ${(w+pad*2).toFixed(1)} ${vbH.toFixed(1)}" role="img" aria-label="Front view of ${esc(p.name)}">`;
   const x0 = pad, y0 = pad, bodyH = h - plinth;
@@ -1720,8 +1788,8 @@ function elevation(i){
 
 /* ---------- SHOP ---------- */
 function renderShop(){
-  const items = Object.values(inv).filter(i => i.active !== false).sort((a,b)=>(CATS.indexOf(a.category)-CATS.indexOf(b.category)) || a.code.localeCompare(b.code));
-  const cats = ['All', ...CATS.filter(c => items.some(i => i.category===c))];
+  const items = Object.values(inv).filter(i => i.active !== false).sort(byCat);
+  const cats = ['All', ...[...new Set(items.map(i => i.category))].sort((a,b) => catRank(a)-catRank(b) || String(a).localeCompare(String(b)))];
   if (!cats.includes(ui.cat)) ui.cat = 'All';
   $('cats').innerHTML = cats.map(c => `<button type="button" class="pill" data-cat="${esc(c)}" aria-pressed="${c===ui.cat}">${esc(c)}</button>`).join('');
   const shown = items.filter(i => ui.cat==='All' || i.category===ui.cat);
@@ -1957,6 +2025,10 @@ function cabinetSpec(b){
   const sh = (m.rows||[]).length; if (sh) bits.push(sh + ' shel' + (sh>1?'ves':'f'));
   if (m.hatRail) bits.push('hanging rail');
   if (m.sink) bits.push('sink unit: vertical rail 70');
+  if (m.hasBack === false) bits.push('no back');
+  if (m.hasBase === false) bits.push('no base');
+  if (m.fixed) bits.push('fixed shelf ' + m.fixed + ' from bottom');
+  if (m.hinges && m.hinges.length) bits.push('hinges at ' + m.hinges.join(', ') + ' from top');
   if (m.legs) bits.push('legs ' + m.legs + (m.floor && m.floor!=='none' ? ', ' + ({L:'LH gable',R:'RH gable',both:'both gables'})[m.floor] + ' to floor' : ''));
   else if (o.plinth && (o.construction==='robe' || o.construction==='plinth' || b.family==='SHR' || b.family==='C3J')) bits.push('plinth ' + o.plinth);
   return bits.join(', ');
@@ -2089,11 +2161,271 @@ async function downloadFiles(o){
   }
 }
 
+/* ---------- Cab Builder catalogue: the plain cabinets from the order portal's supplier list (corners, panels, accessories and specials are left out) ---------- */
+const CAB_BUILDER_CATALOGUE = [
+  {"code":"HL150","name":"Base 150","category":"Base units","construction":"base","w":150,"h":720,"d":570,"doors":"single","shelves":1,"drawers":0},
+  {"code":"HL260","name":"Base 260","category":"Base units","construction":"base","w":260,"h":720,"d":570,"doors":"single","shelves":1,"drawers":0},
+  {"code":"HL300","name":"Base 300","category":"Base units","construction":"base","w":300,"h":720,"d":570,"doors":"single","shelves":1,"drawers":0},
+  {"code":"HL350","name":"Base 350","category":"Base units","construction":"base","w":350,"h":720,"d":570,"doors":"single","shelves":1,"drawers":0},
+  {"code":"HL400","name":"Base 400","category":"Base units","construction":"base","w":400,"h":720,"d":570,"doors":"single","shelves":1,"drawers":0},
+  {"code":"HL450","name":"Base 450","category":"Base units","construction":"base","w":450,"h":720,"d":570,"doors":"single","shelves":1,"drawers":0},
+  {"code":"HL500","name":"Base 500","category":"Base units","construction":"base","w":500,"h":720,"d":570,"doors":"single","shelves":1,"drawers":0},
+  {"code":"HL550","name":"Base 550","category":"Base units","construction":"base","w":550,"h":720,"d":570,"doors":"single","shelves":1,"drawers":0},
+  {"code":"HL600","name":"Base 600","category":"Base units","construction":"base","w":600,"h":720,"d":570,"doors":"single","shelves":1,"drawers":0},
+  {"code":"HL700","name":"Base 700","category":"Base units","construction":"base","w":700,"h":720,"d":570,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"HL750","name":"Base 750","category":"Base units","construction":"base","w":750,"h":720,"d":570,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"HL800","name":"Base 800","category":"Base units","construction":"base","w":800,"h":720,"d":570,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"HL850","name":"Base 850","category":"Base units","construction":"base","w":850,"h":720,"d":570,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"HL900","name":"Base 900","category":"Base units","construction":"base","w":900,"h":720,"d":570,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"HL950","name":"Base 950","category":"Base units","construction":"base","w":950,"h":720,"d":570,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"HL1000","name":"Base 1000","category":"Base units","construction":"base","w":1000,"h":720,"d":570,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"HL1100","name":"Base 1100","category":"Base units","construction":"base","w":1100,"h":720,"d":570,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"HL1200","name":"Base 1200","category":"Base units","construction":"base","w":1200,"h":720,"d":570,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"BUOH","name":"Built-under Oven Housing","category":"Base units","construction":"base","w":600,"h":720,"d":570,"doors":"single","shelves":1,"drawers":0},
+  {"code":"BUOHD","name":"Built under Oven Housing with draw","category":"Base units","construction":"base","w":600,"h":720,"d":570,"doors":"single","shelves":1,"drawers":0},
+  {"code":"HL500ST","name":"Base 500 Solid Top","category":"Base units","construction":"base","w":500,"h":720,"d":570,"doors":"single","shelves":1,"drawers":0},
+  {"code":"HL600ST","name":"Base 600 Solid Top","category":"Base units","construction":"base","w":600,"h":720,"d":570,"doors":"single","shelves":1,"drawers":0},
+  {"code":"HL700ST","name":"Base 700 Solid Top","category":"Base units","construction":"base","w":700,"h":720,"d":570,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"HL800ST","name":"Base 800 Solid Top","category":"Base units","construction":"base","w":800,"h":720,"d":570,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"HL900ST","name":"Base 900 Solid Top","category":"Base units","construction":"base","w":900,"h":720,"d":570,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"HL1000ST","name":"Base 1000 Solid Top","category":"Base units","construction":"base","w":1000,"h":720,"d":570,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"HL1100ST","name":"Base 1100 Solid Top","category":"Base units","construction":"base","w":1100,"h":720,"d":570,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"HL1200ST","name":"Base 1200 Solid Top","category":"Base units","construction":"base","w":1200,"h":720,"d":570,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"HL600BEL","name":"Belfast Sink Base 600","category":"Base units","construction":"base","w":600,"h":460,"d":570,"doors":"single","shelves":1,"drawers":0},
+  {"code":"HL800BEL","name":"Belfast Sink Base 800","category":"Base units","construction":"base","w":800,"h":460,"d":570,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DL300T","name":"Drawline Base 300 Soft Close Draws","category":"Base units","construction":"base","w":300,"h":720,"d":570,"doors":"single","shelves":1,"drawers":0},
+  {"code":"DL400T","name":"Drawline Base 400 Soft Close Draws","category":"Base units","construction":"base","w":400,"h":720,"d":570,"doors":"single","shelves":1,"drawers":0},
+  {"code":"DL500T","name":"Drawline Base 500 Soft Close Draws","category":"Base units","construction":"base","w":500,"h":720,"d":570,"doors":"single","shelves":1,"drawers":0},
+  {"code":"DL600T","name":"Drawline Base 600","category":"Base units","construction":"base","w":600,"h":720,"d":570,"doors":"single","shelves":1,"drawers":0},
+  {"code":"DL700T","name":"Drawline Base 700 Soft Close Draws","category":"Base units","construction":"base","w":700,"h":720,"d":570,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DL800T","name":"Drawline Base 800","category":"Base units","construction":"base","w":800,"h":720,"d":570,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DL900T","name":"Drawline Base 900 Soft Close Draws","category":"Base units","construction":"base","w":900,"h":720,"d":570,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DL1000T","name":"Drawline Base 1000 Soft Close Draws","category":"Base units","construction":"base","w":1000,"h":720,"d":570,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DL1100T","name":"Drawline Base 1100 Soft Close Draws","category":"Base units","construction":"base","w":1100,"h":720,"d":570,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DL1200T","name":"Drawline Base 1200 Soft Close Draws","category":"Base units","construction":"base","w":1200,"h":720,"d":570,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DLC700T","name":"Drawline Corner Base 700 Soft Close","category":"Base units","construction":"base","w":700,"h":720,"d":570,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DLC800T","name":"Drawline Corner Base 800 Soft Close","category":"Base units","construction":"base","w":800,"h":720,"d":570,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DLC900T","name":"Drawline Corner Base 900 Soft Close","category":"Base units","construction":"base","w":900,"h":720,"d":570,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DLC1000T","name":"Drawline Corner Base 1000 Soft Close","category":"Base units","construction":"base","w":1000,"h":720,"d":570,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DLC1100T","name":"Drawline Corner Base 1100 Soft Close","category":"Base units","construction":"base","w":1100,"h":720,"d":570,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DLC1200T","name":"Drawline Corner Base 1200 Soft Close","category":"Base units","construction":"base","w":1200,"h":720,"d":570,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DP300D2T","name":"Draw Pack 300 with 2 Soft Close Draws","category":"Drawer units","construction":"base","w":300,"h":720,"d":570,"doors":"none","shelves":0,"drawers":2},
+  {"code":"DP400D2T","name":"Draw Pack 400 with 2 Soft Close Draws","category":"Drawer units","construction":"base","w":400,"h":720,"d":570,"doors":"none","shelves":0,"drawers":2},
+  {"code":"DP500D2T","name":"Draw Pack 500 with 2 Soft Close Draws","category":"Drawer units","construction":"base","w":500,"h":720,"d":570,"doors":"none","shelves":0,"drawers":2},
+  {"code":"DP600D2T","name":"Drawer Pack 600, 2 Drawers","category":"Drawer units","construction":"base","w":600,"h":720,"d":570,"doors":"none","shelves":0,"drawers":2},
+  {"code":"DP800D2T","name":"Draw Pack 800 with 2 Soft Close Draws","category":"Drawer units","construction":"base","w":800,"h":720,"d":570,"doors":"none","shelves":0,"drawers":2},
+  {"code":"DP900D2T","name":"Draw Pack 900 with 2 Soft Close Draws","category":"Drawer units","construction":"base","w":900,"h":720,"d":570,"doors":"none","shelves":0,"drawers":2},
+  {"code":"DP1000D2T","name":"Draw Pack 1000 with 2 Soft Close Draws","category":"Drawer units","construction":"base","w":1000,"h":720,"d":570,"doors":"none","shelves":0,"drawers":2},
+  {"code":"DP300D2TINT","name":"Draw Pack 300 with 2 + Top Int Soft Close Draws","category":"Drawer units","construction":"base","w":300,"h":720,"d":570,"doors":"none","shelves":0,"drawers":2},
+  {"code":"DP400D3TINT","name":"Draw Pack 400 with 2 + Top Int Soft Close Draws","category":"Drawer units","construction":"base","w":400,"h":720,"d":570,"doors":"none","shelves":0,"drawers":3},
+  {"code":"DP500D3TINT","name":"Draw Pack 500 with 2 + Top Int Soft Close Draws","category":"Drawer units","construction":"base","w":500,"h":720,"d":570,"doors":"none","shelves":0,"drawers":3},
+  {"code":"DP600D3TINT","name":"Draw Pack 600 with 2 + Top Int Soft Close Draws","category":"Drawer units","construction":"base","w":600,"h":720,"d":570,"doors":"none","shelves":0,"drawers":3},
+  {"code":"DP800D3TINT","name":"Draw Pack 800 with 2 + Top Int Soft Close Draws","category":"Drawer units","construction":"base","w":800,"h":720,"d":570,"doors":"none","shelves":0,"drawers":3},
+  {"code":"DP900D3TINT","name":"Draw Pack 900 with 2 + Top Int Soft Close Draws","category":"Drawer units","construction":"base","w":900,"h":720,"d":570,"doors":"none","shelves":0,"drawers":3},
+  {"code":"DP1000D3TINT","name":"Draw Pack 1000 with 2 + Top Int Soft Close Draws","category":"Drawer units","construction":"base","w":1000,"h":720,"d":570,"doors":"none","shelves":0,"drawers":3},
+  {"code":"DP300D3T","name":"Draw Pack 300 with 3 Soft Close Draws","category":"Drawer units","construction":"base","w":300,"h":720,"d":570,"doors":"none","shelves":0,"drawers":3},
+  {"code":"DP400D3T","name":"Draw Pack 400 with 3 Soft Close Draws","category":"Drawer units","construction":"base","w":400,"h":720,"d":570,"doors":"none","shelves":0,"drawers":3},
+  {"code":"DP500D3T","name":"Draw Pack 500 with 3 Soft Close Draws","category":"Drawer units","construction":"base","w":500,"h":720,"d":570,"doors":"none","shelves":0,"drawers":3},
+  {"code":"DP600D3T","name":"Draw Pack 600 with 3 Soft Close Draws","category":"Drawer units","construction":"base","w":600,"h":720,"d":570,"doors":"none","shelves":0,"drawers":3},
+  {"code":"DP800D3T","name":"Drawer Pack 800, 3 Drawers","category":"Drawer units","construction":"base","w":800,"h":720,"d":570,"doors":"none","shelves":0,"drawers":3},
+  {"code":"DP900D3T","name":"Draw Pack 900 with 3 Soft Close Draws","category":"Drawer units","construction":"base","w":900,"h":720,"d":570,"doors":"none","shelves":0,"drawers":3},
+  {"code":"DP1000D3T","name":"Draw Pack 1000 with 3 Soft Close Draws","category":"Drawer units","construction":"base","w":1000,"h":720,"d":570,"doors":"none","shelves":0,"drawers":3},
+  {"code":"DP300D4T","name":"Draw Pack 300 with 4 Soft Close Draws","category":"Drawer units","construction":"base","w":300,"h":720,"d":570,"doors":"none","shelves":0,"drawers":4},
+  {"code":"DP400D4T","name":"Draw Pack 400 with 4 Soft Close Draws","category":"Drawer units","construction":"base","w":400,"h":720,"d":570,"doors":"none","shelves":0,"drawers":4},
+  {"code":"DP500D4T","name":"Draw Pack 500 with 4 Soft Close Draws","category":"Drawer units","construction":"base","w":500,"h":720,"d":570,"doors":"none","shelves":0,"drawers":4},
+  {"code":"DP600D4T","name":"Drawer Pack 600, 4 Drawers","category":"Drawer units","construction":"base","w":600,"h":720,"d":570,"doors":"none","shelves":0,"drawers":4},
+  {"code":"DP700D4T","name":"Draw Pack 700 with 4 Soft Close Draws","category":"Drawer units","construction":"base","w":700,"h":720,"d":570,"doors":"none","shelves":0,"drawers":4},
+  {"code":"DP800D4T","name":"Draw Pack 800 with 4 Soft Close Draws","category":"Drawer units","construction":"base","w":800,"h":720,"d":570,"doors":"none","shelves":0,"drawers":4},
+  {"code":"DP900D4T","name":"Draw Pack 900 with 4 Soft Close Draws","category":"Drawer units","construction":"base","w":900,"h":720,"d":570,"doors":"none","shelves":0,"drawers":4},
+  {"code":"DP300D5T","name":"Draw Pack 300 with 5 Soft Close Draws","category":"Drawer units","construction":"base","w":300,"h":720,"d":570,"doors":"none","shelves":0,"drawers":5},
+  {"code":"DP400D5T","name":"Draw Pack 400 with 5 Soft Close Draws","category":"Drawer units","construction":"base","w":400,"h":720,"d":570,"doors":"none","shelves":0,"drawers":5},
+  {"code":"DP500D5T","name":"Draw Pack 500 with 5 Soft Close Draws","category":"Drawer units","construction":"base","w":500,"h":720,"d":570,"doors":"none","shelves":0,"drawers":5},
+  {"code":"DP600D5T","name":"Draw Pack 600 with 5 Soft Close Draws","category":"Drawer units","construction":"base","w":600,"h":720,"d":570,"doors":"none","shelves":0,"drawers":5},
+  {"code":"DP700D5T","name":"Draw Pack 700 with 5 Soft Close Draws","category":"Drawer units","construction":"base","w":700,"h":720,"d":570,"doors":"none","shelves":0,"drawers":5},
+  {"code":"DP800D5T","name":"Draw Pack 700 with 5 Soft Close Draws","category":"Drawer units","construction":"base","w":800,"h":720,"d":570,"doors":"none","shelves":0,"drawers":5},
+  {"code":"DP900D5T","name":"Draw Pack 900 with 5 Soft Close Draws","category":"Drawer units","construction":"base","w":900,"h":720,"d":570,"doors":"none","shelves":0,"drawers":5},
+  {"code":"DP1000D5T","name":"Draw Pack 1000 with 5 Soft Close Draws","category":"Drawer units","construction":"base","w":1000,"h":720,"d":570,"doors":"none","shelves":0,"drawers":5},
+  {"code":"SL300","name":"Larder 300 1970 High","category":"Tall units","construction":"tall","w":300,"h":1970,"d":570,"doors":"single","shelves":5,"drawers":0},
+  {"code":"SL400","name":"Larder 400 1970 High","category":"Tall units","construction":"tall","w":400,"h":1970,"d":570,"doors":"single","shelves":5,"drawers":0},
+  {"code":"SL500","name":"Larder 500, 1970 High","category":"Tall units","construction":"tall","w":500,"h":1970,"d":570,"doors":"single","shelves":5,"drawers":0},
+  {"code":"SL600","name":"Larder 600, 1970 High","category":"Tall units","construction":"tall","w":600,"h":1970,"d":570,"doors":"single","shelves":5,"drawers":0},
+  {"code":"SL700","name":"Larder 700 1970 High","category":"Tall units","construction":"tall","w":700,"h":1970,"d":570,"doors":"pair","shelves":5,"drawers":0},
+  {"code":"SL800","name":"Larder 800 1970 high","category":"Tall units","construction":"tall","w":800,"h":1970,"d":570,"doors":"pair","shelves":5,"drawers":0},
+  {"code":"SL900","name":"Larder 900 1970 high","category":"Tall units","construction":"tall","w":900,"h":1970,"d":570,"doors":"pair","shelves":5,"drawers":0},
+  {"code":"SL1000","name":"Larder 1000, 1970 High","category":"Tall units","construction":"tall","w":1000,"h":1970,"d":570,"doors":"pair","shelves":5,"drawers":0},
+  {"code":"SL1100","name":"Larder 1100 1970 high","category":"Tall units","construction":"tall","w":1100,"h":1970,"d":570,"doors":"pair","shelves":5,"drawers":0},
+  {"code":"SL1200","name":"Larder 1200 1970 high","category":"Tall units","construction":"tall","w":1200,"h":1970,"d":570,"doors":"pair","shelves":5,"drawers":0},
+  {"code":"TL300","name":"Larder 300 2150 High","category":"Tall units","construction":"tall","w":300,"h":2150,"d":570,"doors":"single","shelves":5,"drawers":0},
+  {"code":"TL400","name":"Larder 400 2150 High","category":"Tall units","construction":"tall","w":400,"h":2150,"d":570,"doors":"single","shelves":5,"drawers":0},
+  {"code":"TL500","name":"Larder 500 2150 High","category":"Tall units","construction":"tall","w":500,"h":2150,"d":570,"doors":"single","shelves":5,"drawers":0},
+  {"code":"TL600","name":"Larder 600, 2150 High","category":"Tall units","construction":"tall","w":600,"h":2150,"d":570,"doors":"single","shelves":5,"drawers":0},
+  {"code":"TL700","name":"Larder 700 2150 High","category":"Tall units","construction":"tall","w":700,"h":2150,"d":570,"doors":"pair","shelves":5,"drawers":0},
+  {"code":"TL800","name":"Larder 800 2150 High","category":"Tall units","construction":"tall","w":800,"h":2150,"d":570,"doors":"pair","shelves":5,"drawers":0},
+  {"code":"TL900","name":"Larder 900 2150 High","category":"Tall units","construction":"tall","w":900,"h":2150,"d":570,"doors":"pair","shelves":5,"drawers":0},
+  {"code":"TL1000","name":"Larder 1000 2150 High","category":"Tall units","construction":"tall","w":1000,"h":2150,"d":570,"doors":"pair","shelves":5,"drawers":0},
+  {"code":"TL1100","name":"Larder 1100 2150 High","category":"Tall units","construction":"tall","w":1100,"h":2150,"d":570,"doors":"pair","shelves":5,"drawers":0},
+  {"code":"TL1200","name":"Larder 1200 2150 High","category":"Tall units","construction":"tall","w":1200,"h":2150,"d":570,"doors":"pair","shelves":5,"drawers":0},
+  {"code":"SFFH600","name":"Fridge Freezer Housing 1970","category":"Tall units","construction":"tall","w":600,"h":1970,"d":570,"doors":"single","shelves":5,"drawers":0},
+  {"code":"SAH600","name":"Appliance Housing 1970 High","category":"Tall units","construction":"tall","w":600,"h":1970,"d":570,"doors":"single","shelves":1,"drawers":0},
+  {"code":"SAH600D1T","name":"Appliance Housing 1970 High 1 Soft Close Draw","category":"Tall units","construction":"tall","w":600,"h":1970,"d":570,"doors":"single","shelves":1,"drawers":0},
+  {"code":"SAH600D2T","name":"Appliance Housing 1970 High 2 Soft Close Draws","category":"Tall units","construction":"tall","w":600,"h":1970,"d":570,"doors":"single","shelves":1,"drawers":0},
+  {"code":"TFFH600","name":"Fridge Freezer Housing 2150","category":"Tall units","construction":"tall","w":600,"h":2150,"d":570,"doors":"single","shelves":5,"drawers":0},
+  {"code":"TAH600","name":"Appliance Housing 2150 High","category":"Tall units","construction":"tall","w":600,"h":2150,"d":570,"doors":"single","shelves":1,"drawers":0},
+  {"code":"TAH600D1T","name":"Appliance Housing 2150 High 1 Soft Close Draw","category":"Tall units","construction":"tall","w":600,"h":2150,"d":570,"doors":"single","shelves":1,"drawers":0},
+  {"code":"TAH600D2T","name":"Appliance Housing 2150 High 2 Soft Close Draws","category":"Tall units","construction":"tall","w":600,"h":2150,"d":570,"doors":"single","shelves":1,"drawers":0},
+  {"code":"PL800","name":"Pantry Larder 800 1970 high","category":"Tall units","construction":"tall","w":800,"h":1970,"d":570,"doors":"pair","shelves":5,"drawers":0},
+  {"code":"PL900","name":"Pantry Larder 900 1970 high","category":"Tall units","construction":"tall","w":900,"h":1970,"d":570,"doors":"pair","shelves":5,"drawers":0},
+  {"code":"PL1000","name":"Pantry Larder 1000","category":"Tall units","construction":"tall","w":1000,"h":1970,"d":570,"doors":"pair","shelves":5,"drawers":0},
+  {"code":"PL1100","name":"Pantry Larder 1100 1970 high","category":"Tall units","construction":"tall","w":1100,"h":1970,"d":570,"doors":"pair","shelves":5,"drawers":0},
+  {"code":"PL1200","name":"Pantry Larder 1200 1970 high","category":"Tall units","construction":"tall","w":1200,"h":1970,"d":570,"doors":"pair","shelves":5,"drawers":0},
+  {"code":"TBS600","name":"Top Box 600 × 285","category":"Wall units","construction":"wall","w":600,"h":285,"d":300,"doors":"single","shelves":0,"drawers":0},
+  {"code":"TBS800","name":"800 X 285MM TOP BOX","category":"Wall units","construction":"wall","w":800,"h":285,"d":300,"doors":"pair","shelves":0,"drawers":0},
+  {"code":"TBS900","name":"900 X 285MM TOP BOX","category":"Wall units","construction":"wall","w":900,"h":285,"d":300,"doors":"pair","shelves":0,"drawers":0},
+  {"code":"TBS1000","name":"1000 X 285MM TOP BOX","category":"Wall units","construction":"wall","w":1000,"h":285,"d":300,"doors":"pair","shelves":0,"drawers":0},
+  {"code":"TBM500","name":"500 X 360MM TOP BOX","category":"Wall units","construction":"wall","w":500,"h":360,"d":300,"doors":"single","shelves":0,"drawers":0},
+  {"code":"TBM600","name":"600 X 360MM TOP BOX","category":"Wall units","construction":"wall","w":600,"h":360,"d":300,"doors":"single","shelves":0,"drawers":0},
+  {"code":"TBM800","name":"800 X 360MM TOP BOX","category":"Wall units","construction":"wall","w":800,"h":360,"d":300,"doors":"pair","shelves":0,"drawers":0},
+  {"code":"TBM900","name":"900 X 360MM TOP BOX","category":"Wall units","construction":"wall","w":900,"h":360,"d":300,"doors":"pair","shelves":0,"drawers":0},
+  {"code":"TBM1000","name":"1000 X 360MM TOP BOX","category":"Wall units","construction":"wall","w":1000,"h":360,"d":300,"doors":"pair","shelves":0,"drawers":0},
+  {"code":"LW300","name":"Wall 300 575 High","category":"Wall units","construction":"wall","w":300,"h":575,"d":300,"doors":"single","shelves":1,"drawers":0},
+  {"code":"LW400","name":"Wall 400 575 High","category":"Wall units","construction":"wall","w":400,"h":575,"d":300,"doors":"single","shelves":1,"drawers":0},
+  {"code":"LW450","name":"Wall 450 575 High","category":"Wall units","construction":"wall","w":450,"h":575,"d":300,"doors":"single","shelves":1,"drawers":0},
+  {"code":"LW500","name":"Wall 500 575 High","category":"Wall units","construction":"wall","w":500,"h":575,"d":300,"doors":"single","shelves":1,"drawers":0},
+  {"code":"LW600","name":"Wall 600, 575 High","category":"Wall units","construction":"wall","w":600,"h":575,"d":300,"doors":"single","shelves":1,"drawers":0},
+  {"code":"LW800","name":"Wall 800 575 High","category":"Wall units","construction":"wall","w":800,"h":575,"d":300,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"LW900","name":"Wall 900 575 High","category":"Wall units","construction":"wall","w":900,"h":575,"d":300,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"LW1000","name":"Wall 1000 575 High","category":"Wall units","construction":"wall","w":1000,"h":575,"d":300,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"LW1200","name":"Wall 1200 575 High","category":"Wall units","construction":"wall","w":1200,"h":575,"d":300,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"SW150","name":"Wall 150 720 High","category":"Wall units","construction":"wall","w":150,"h":720,"d":300,"doors":"single","shelves":2,"drawers":0},
+  {"code":"SW260","name":"Wall 260 720 High","category":"Wall units","construction":"wall","w":260,"h":720,"d":300,"doors":"single","shelves":2,"drawers":0},
+  {"code":"SW300","name":"Wall 300, 720 High","category":"Wall units","construction":"wall","w":300,"h":720,"d":300,"doors":"single","shelves":2,"drawers":0},
+  {"code":"SW350","name":"Wall 350 720 High","category":"Wall units","construction":"wall","w":350,"h":720,"d":300,"doors":"single","shelves":2,"drawers":0},
+  {"code":"SW400","name":"Wall 400, 720 High","category":"Wall units","construction":"wall","w":400,"h":720,"d":300,"doors":"single","shelves":2,"drawers":0},
+  {"code":"SW450","name":"Wall 450 720 High","category":"Wall units","construction":"wall","w":450,"h":720,"d":300,"doors":"single","shelves":2,"drawers":0},
+  {"code":"SW500","name":"Wall 500, 720 High","category":"Wall units","construction":"wall","w":500,"h":720,"d":300,"doors":"single","shelves":2,"drawers":0},
+  {"code":"SW550","name":"Wall 550 720 High","category":"Wall units","construction":"wall","w":550,"h":720,"d":300,"doors":"single","shelves":2,"drawers":0},
+  {"code":"SW600","name":"Wall 600, 720 High","category":"Wall units","construction":"wall","w":600,"h":720,"d":300,"doors":"single","shelves":2,"drawers":0},
+  {"code":"SW700","name":"Wall 700 720 High","category":"Wall units","construction":"wall","w":700,"h":720,"d":300,"doors":"pair","shelves":2,"drawers":0},
+  {"code":"SW800","name":"Wall 800, 720 High","category":"Wall units","construction":"wall","w":800,"h":720,"d":300,"doors":"pair","shelves":2,"drawers":0},
+  {"code":"SW900","name":"Wall 900 720 High","category":"Wall units","construction":"wall","w":900,"h":720,"d":300,"doors":"pair","shelves":2,"drawers":0},
+  {"code":"SW1000","name":"Wall 1000, 720 High","category":"Wall units","construction":"wall","w":1000,"h":720,"d":300,"doors":"pair","shelves":2,"drawers":0},
+  {"code":"SW1100","name":"Wall 1100 720 High","category":"Wall units","construction":"wall","w":1100,"h":720,"d":300,"doors":"pair","shelves":2,"drawers":0},
+  {"code":"SW1200","name":"Wall 1200 720 High","category":"Wall units","construction":"wall","w":1200,"h":720,"d":300,"doors":"pair","shelves":2,"drawers":0},
+  {"code":"TW300","name":"Wall 300 900 High","category":"Wall units","construction":"wall","w":300,"h":900,"d":300,"doors":"single","shelves":3,"drawers":0},
+  {"code":"TW350","name":"Wall 350 900 High","category":"Wall units","construction":"wall","w":350,"h":900,"d":300,"doors":"single","shelves":3,"drawers":0},
+  {"code":"TW400","name":"Wall 400 900 High","category":"Wall units","construction":"wall","w":400,"h":900,"d":300,"doors":"single","shelves":3,"drawers":0},
+  {"code":"TW450","name":"Wall 450 900 High","category":"Wall units","construction":"wall","w":450,"h":900,"d":300,"doors":"single","shelves":3,"drawers":0},
+  {"code":"TW500","name":"Wall 500 900 High","category":"Wall units","construction":"wall","w":500,"h":900,"d":300,"doors":"single","shelves":3,"drawers":0},
+  {"code":"TW550","name":"Wall 550 900 High","category":"Wall units","construction":"wall","w":550,"h":900,"d":300,"doors":"single","shelves":3,"drawers":0},
+  {"code":"TW600","name":"Wall 600, 900 High","category":"Wall units","construction":"wall","w":600,"h":900,"d":300,"doors":"single","shelves":3,"drawers":0},
+  {"code":"TW700","name":"Wall 700 900 High","category":"Wall units","construction":"wall","w":700,"h":900,"d":300,"doors":"pair","shelves":3,"drawers":0},
+  {"code":"TW800","name":"Wall 800 900 High","category":"Wall units","construction":"wall","w":800,"h":900,"d":300,"doors":"pair","shelves":3,"drawers":0},
+  {"code":"TW900","name":"Wall 900 900 High","category":"Wall units","construction":"wall","w":900,"h":900,"d":300,"doors":"pair","shelves":3,"drawers":0},
+  {"code":"TW1000","name":"Wall 1000 900 High","category":"Wall units","construction":"wall","w":1000,"h":900,"d":300,"doors":"pair","shelves":3,"drawers":0},
+  {"code":"TW1100","name":"Wall 1100 900 High","category":"Wall units","construction":"wall","w":1100,"h":900,"d":400,"doors":"pair","shelves":3,"drawers":0},
+  {"code":"TW1200","name":"Wall 1200 900 High","category":"Wall units","construction":"wall","w":1200,"h":900,"d":400,"doors":"pair","shelves":3,"drawers":0},
+  {"code":"SDRE500","name":"Dresser 500 1210 High","category":"Wall units","construction":"wall","w":500,"h":1210,"d":300,"doors":"single","shelves":4,"drawers":0},
+  {"code":"SDRE500D1T","name":"Dresser 500 1210 High with 1 Soft Close Draw","category":"Wall units","construction":"wall","w":500,"h":1210,"d":300,"doors":"single","shelves":4,"drawers":0},
+  {"code":"SDRE500D2T","name":"Dresser 500 1210 High with 2 Soft Close Draws","category":"Wall units","construction":"wall","w":500,"h":1210,"d":300,"doors":"single","shelves":4,"drawers":0},
+  {"code":"SDRE600","name":"Dresser 600 1210 High","category":"Wall units","construction":"wall","w":600,"h":1210,"d":300,"doors":"single","shelves":4,"drawers":0},
+  {"code":"SDRE600D1T","name":"Dresser 600 1210 High with 1 Soft Close Draw","category":"Wall units","construction":"wall","w":600,"h":1210,"d":300,"doors":"single","shelves":4,"drawers":0},
+  {"code":"SDRE600D2T","name":"Dresser 600 1210 High with 2 Soft Close Draws","category":"Wall units","construction":"wall","w":600,"h":1210,"d":300,"doors":"single","shelves":4,"drawers":0},
+  {"code":"TDRE500","name":"Dresser 500 1390 High","category":"Wall units","construction":"wall","w":500,"h":1390,"d":300,"doors":"single","shelves":4,"drawers":0},
+  {"code":"TDRE500D1T","name":"Dresser 500 1390 High with 1 Soft Close Draw","category":"Wall units","construction":"wall","w":500,"h":1390,"d":300,"doors":"single","shelves":4,"drawers":0},
+  {"code":"TDRE500D2T","name":"Dresser 500 1390 High with 2 Soft Close Draws","category":"Wall units","construction":"wall","w":500,"h":1390,"d":300,"doors":"single","shelves":4,"drawers":0},
+  {"code":"TDRE600","name":"Dresser 600 1390 High","category":"Wall units","construction":"wall","w":600,"h":1390,"d":300,"doors":"single","shelves":4,"drawers":0},
+  {"code":"TDRE600D1T","name":"Dresser 600 1390 High with 1 Soft Close Draw","category":"Wall units","construction":"wall","w":600,"h":1390,"d":300,"doors":"single","shelves":4,"drawers":0},
+  {"code":"TDRE600D2T","name":"Dresser 600 1390 High with 2 Soft Close Draws","category":"Wall units","construction":"wall","w":600,"h":1390,"d":300,"doors":"single","shelves":4,"drawers":0},
+  {"code":"SR300B","name":"Robe 300","category":"Wardrobes","construction":"robe","w":300,"h":2150,"d":600,"doors":"single","shelves":1,"drawers":0},
+  {"code":"SR350B","name":"Robe 350","category":"Wardrobes","construction":"robe","w":350,"h":2150,"d":600,"doors":"single","shelves":1,"drawers":0},
+  {"code":"SR400B","name":"Robe 400","category":"Wardrobes","construction":"robe","w":400,"h":2150,"d":600,"doors":"single","shelves":1,"drawers":0},
+  {"code":"SR450B","name":"Robe 450","category":"Wardrobes","construction":"robe","w":450,"h":2150,"d":600,"doors":"single","shelves":1,"drawers":0},
+  {"code":"SR500B","name":"Robe 500","category":"Wardrobes","construction":"robe","w":500,"h":2150,"d":600,"doors":"single","shelves":1,"drawers":0},
+  {"code":"SR550B","name":"Robe 550","category":"Wardrobes","construction":"robe","w":550,"h":2150,"d":600,"doors":"single","shelves":1,"drawers":0},
+  {"code":"SR600B","name":"Robe 600","category":"Wardrobes","construction":"robe","w":600,"h":2150,"d":600,"doors":"single","shelves":1,"drawers":0},
+  {"code":"DR650B","name":"Robe 650","category":"Wardrobes","construction":"robe","w":650,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR700B","name":"Robe 700","category":"Wardrobes","construction":"robe","w":700,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR750B","name":"Robe 750","category":"Wardrobes","construction":"robe","w":750,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR800B","name":"Robe 800","category":"Wardrobes","construction":"robe","w":800,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR850B","name":"Robe 850","category":"Wardrobes","construction":"robe","w":850,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR900B","name":"Robe 900","category":"Wardrobes","construction":"robe","w":900,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR1000B","name":"Robe 1000","category":"Wardrobes","construction":"robe","w":1000,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR1200B","name":"Robe 1200","category":"Wardrobes","construction":"robe","w":1200,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"SR300SH","name":"Robe 300 SH","category":"Wardrobes","construction":"robe","w":300,"h":2150,"d":600,"doors":"single","shelves":1,"drawers":0},
+  {"code":"SR350SH","name":"Robe 350 SH","category":"Wardrobes","construction":"robe","w":350,"h":2150,"d":600,"doors":"single","shelves":1,"drawers":0},
+  {"code":"SR400SH","name":"Robe 400 SH","category":"Wardrobes","construction":"robe","w":400,"h":2150,"d":600,"doors":"single","shelves":1,"drawers":0},
+  {"code":"SR450SH","name":"Robe 450 SH","category":"Wardrobes","construction":"robe","w":450,"h":2150,"d":600,"doors":"single","shelves":1,"drawers":0},
+  {"code":"SR500SH","name":"Robe 500 SH","category":"Wardrobes","construction":"robe","w":500,"h":2150,"d":600,"doors":"single","shelves":1,"drawers":0},
+  {"code":"SR550SH","name":"Robe 550 SH","category":"Wardrobes","construction":"robe","w":550,"h":2150,"d":600,"doors":"single","shelves":1,"drawers":0},
+  {"code":"SR600SH","name":"Robe 600 SH","category":"Wardrobes","construction":"robe","w":600,"h":2150,"d":600,"doors":"single","shelves":1,"drawers":0},
+  {"code":"DR650SH","name":"Robe 650 SH","category":"Wardrobes","construction":"robe","w":650,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR700SH","name":"Robe 700 SH","category":"Wardrobes","construction":"robe","w":700,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR750SH","name":"Robe 750 SH","category":"Wardrobes","construction":"robe","w":750,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR800SH","name":"Robe 800 SH","category":"Wardrobes","construction":"robe","w":800,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR850SH","name":"Robe 850 SH","category":"Wardrobes","construction":"robe","w":850,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR900SH","name":"Robe 900, 5 Loose Shelves","category":"Wardrobes","construction":"robe","w":900,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR1000SH","name":"Robe 1000 SH","category":"Wardrobes","construction":"robe","w":1000,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR1200SH","name":"Robe 1200 SH","category":"Wardrobes","construction":"robe","w":1200,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR700FX3","name":"Robe 700 FX3","category":"Wardrobes","construction":"robe","w":700,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR750FX3","name":"Robe 750 FX3","category":"Wardrobes","construction":"robe","w":750,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR800FX3","name":"Robe 800 FX3","category":"Wardrobes","construction":"robe","w":800,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR850FX3","name":"Robe 850 FX3","category":"Wardrobes","construction":"robe","w":850,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR900FX3","name":"Robe 900 FX3","category":"Wardrobes","construction":"robe","w":900,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR1000FX3","name":"Robe 1000 FX3","category":"Wardrobes","construction":"robe","w":1000,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR1200FX3","name":"Robe 1200 FX3","category":"Wardrobes","construction":"robe","w":1200,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"SR300D2","name":"Robe 300 2 External Draws","category":"Wardrobes","construction":"robe","w":300,"h":2150,"d":600,"doors":"single","shelves":1,"drawers":0},
+  {"code":"SR350D2","name":"Robe 350 2 External Draws","category":"Wardrobes","construction":"robe","w":350,"h":2150,"d":600,"doors":"single","shelves":1,"drawers":0},
+  {"code":"SR400D2","name":"Robe 400 2 External Draws","category":"Wardrobes","construction":"robe","w":400,"h":2150,"d":600,"doors":"single","shelves":1,"drawers":0},
+  {"code":"SR450D2","name":"Robe 450 2 External Draws","category":"Wardrobes","construction":"robe","w":450,"h":2150,"d":600,"doors":"single","shelves":1,"drawers":0},
+  {"code":"SR500D2","name":"Robe 500 2 External Draws","category":"Wardrobes","construction":"robe","w":500,"h":2150,"d":600,"doors":"single","shelves":1,"drawers":0},
+  {"code":"SR550D2","name":"Robe 550 2 External Draws","category":"Wardrobes","construction":"robe","w":550,"h":2150,"d":600,"doors":"single","shelves":1,"drawers":0},
+  {"code":"SR600D2","name":"Robe 600 2 External Draws","category":"Wardrobes","construction":"robe","w":600,"h":2150,"d":600,"doors":"single","shelves":1,"drawers":0},
+  {"code":"DR650D2","name":"Robe 650 2 External Draws","category":"Wardrobes","construction":"robe","w":650,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR700D2","name":"Robe 700 2 External Draws","category":"Wardrobes","construction":"robe","w":700,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR750D2","name":"Robe 750 2 External Draws","category":"Wardrobes","construction":"robe","w":750,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR800D2","name":"Robe 800 2 External Draws","category":"Wardrobes","construction":"robe","w":800,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR850D2","name":"Robe 850 2 External Draws","category":"Wardrobes","construction":"robe","w":850,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR900D2","name":"Robe 900 2 External Draws","category":"Wardrobes","construction":"robe","w":900,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR1000D2","name":"Robe 1000, 2 External Drawers","category":"Wardrobes","construction":"robe","w":1000,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR1200D2","name":"Robe 1200 2 External Draws","category":"Wardrobes","construction":"robe","w":1200,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"SR300D3","name":"Robe 300 3 External Draws","category":"Wardrobes","construction":"robe","w":300,"h":2150,"d":600,"doors":"single","shelves":1,"drawers":0},
+  {"code":"SR350D3","name":"Robe 350 3 External Draws","category":"Wardrobes","construction":"robe","w":350,"h":2150,"d":600,"doors":"single","shelves":1,"drawers":0},
+  {"code":"SR400D3","name":"Robe 400 3 External Draws","category":"Wardrobes","construction":"robe","w":400,"h":2150,"d":600,"doors":"single","shelves":1,"drawers":0},
+  {"code":"SR450D3","name":"Robe 450 3 External Draws","category":"Wardrobes","construction":"robe","w":450,"h":2150,"d":600,"doors":"single","shelves":1,"drawers":0},
+  {"code":"SR500D3","name":"Robe 500 3 External Draws","category":"Wardrobes","construction":"robe","w":500,"h":2150,"d":600,"doors":"single","shelves":1,"drawers":0},
+  {"code":"SR550D3","name":"Robe 550 3 External Draws","category":"Wardrobes","construction":"robe","w":550,"h":2150,"d":600,"doors":"single","shelves":1,"drawers":0},
+  {"code":"SR600D3","name":"Robe 600 3 External Draws","category":"Wardrobes","construction":"robe","w":600,"h":2150,"d":600,"doors":"single","shelves":1,"drawers":0},
+  {"code":"DR650D3","name":"Robe 650 3 External Draws","category":"Wardrobes","construction":"robe","w":650,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR700D3","name":"Robe 700 3 External Draws","category":"Wardrobes","construction":"robe","w":700,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR750D3","name":"Robe 750 3 External Draws","category":"Wardrobes","construction":"robe","w":750,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR800D3","name":"Robe 800 3 External Draws","category":"Wardrobes","construction":"robe","w":800,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR850D3","name":"Robe 850 3 External Draws","category":"Wardrobes","construction":"robe","w":850,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR900D3","name":"Robe 900 3 External Draws","category":"Wardrobes","construction":"robe","w":900,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR1000D3","name":"Robe 1000 3 External Draws","category":"Wardrobes","construction":"robe","w":1000,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR1200D3","name":"Robe 1200 3 External Draws","category":"Wardrobes","construction":"robe","w":1200,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"SR300D3I","name":"Robe 300 3 External Draws","category":"Wardrobes","construction":"robe","w":300,"h":2150,"d":600,"doors":"single","shelves":1,"drawers":0},
+  {"code":"SR350D3I","name":"Robe 350 3 External Draws","category":"Wardrobes","construction":"robe","w":350,"h":2150,"d":600,"doors":"single","shelves":1,"drawers":0},
+  {"code":"SR400D3I","name":"Robe 400 3 External Draws","category":"Wardrobes","construction":"robe","w":400,"h":2150,"d":600,"doors":"single","shelves":1,"drawers":0},
+  {"code":"SR450D3I","name":"Robe 450 3 External Draws","category":"Wardrobes","construction":"robe","w":450,"h":2150,"d":600,"doors":"single","shelves":1,"drawers":0},
+  {"code":"SR500D3I","name":"Robe 500 3 External Draws","category":"Wardrobes","construction":"robe","w":500,"h":2150,"d":600,"doors":"single","shelves":1,"drawers":0},
+  {"code":"SR550D3I","name":"Robe 550 3 External Draws","category":"Wardrobes","construction":"robe","w":550,"h":2150,"d":600,"doors":"single","shelves":1,"drawers":0},
+  {"code":"SR600D3I","name":"Robe 600 3 External Draws","category":"Wardrobes","construction":"robe","w":600,"h":2150,"d":600,"doors":"single","shelves":1,"drawers":0},
+  {"code":"DR650D3I","name":"Robe 650 3 External Draws","category":"Wardrobes","construction":"robe","w":650,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR700D3I","name":"Robe 700 3 External Draws","category":"Wardrobes","construction":"robe","w":700,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR750D3I","name":"Robe 750 3 External Draws","category":"Wardrobes","construction":"robe","w":750,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR800D3I","name":"Robe 800 3 External Draws","category":"Wardrobes","construction":"robe","w":800,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR850D3I","name":"Robe 850 3 External Draws","category":"Wardrobes","construction":"robe","w":850,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR900D3I","name":"Robe 900 3 External Draws","category":"Wardrobes","construction":"robe","w":900,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR1000D3I","name":"Robe 1000 3 External Draws","category":"Wardrobes","construction":"robe","w":1000,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0},
+  {"code":"DR1200D3I","name":"Robe 1200 3 External Draws","category":"Wardrobes","construction":"robe","w":1200,"h":2150,"d":600,"doors":"pair","shelves":1,"drawers":0}
+];
+
 /* ---------- INVENTORY ---------- */
-$('iCat').innerHTML = CATS.map(c=>`<option>${c}</option>`).join('');
+$('catList').innerHTML = CATS.map(c=>`<option value="${c}"></option>`).join('');
 $('iCon').innerHTML = Object.entries(E.CONSTRUCTIONS).map(([k,v])=>`<option value="${k}">${v}</option>`).join('');
 function formItem(){
-  return { code:$('iCode').value.trim().toUpperCase(), name:$('iName').value.trim(), category:$('iCat').value, price:Math.max(0, +$('iPrice').value || 0),
+  return { hasBack:$('iBack').value!=='no', hasBase:$('iBaseP').value!=='no', fixedShelf:+$('iFixed').value||0, hingeAt:$('iHinges').value,
+    code:$('iCode').value.trim().toUpperCase(), name:$('iName').value.trim(), category:$('iCat').value.trim() || CATS[0], price:Math.max(0, +$('iPrice').value || 0),
     construction:$('iCon').value, w:+$('iW').value, h:+$('iH').value, d:+$('iD').value, doors:$('iDoors').value,
     shelves:+$('iShelves').value||0, drawers:+$('iDrawers').value||0, plinth:+$('iPlinth').value||100,
     drawerType: ($('iCon').value==='robe'||$('iCon').value==='base') ? $('iDrType').value : 'external',
@@ -2109,20 +2441,34 @@ function fillItem(i){
   $('iDoors').value = p.doors||'none'; $('iShelves').value = p.shelves ?? 0; $('iDrawers').value = p.drawers ?? 0; $('iPlinth').value = p.plinth ?? 100; $('iDrType').value = p.drawerType==='internal' ? 'internal' : 'external';
   $('iSupport').value = p.support==='legs' ? (+p.legH===150 ? 'legs150' : 'legs100') : 'plinth'; $('iFloor').value = p.floorGables || 'none';
   $('iSink').value = p.sink ? 'yes' : 'no';
+  $('iBack').value = p.hasBack === false ? 'no' : 'yes'; $('iBaseP').value = p.hasBase === false ? 'no' : 'yes'; $('iFixed').value = p.fixedShelf || '';
+  const hpos = Array.isArray(p.hingePos) ? p.hingePos : [];
+  $('iHinges').value = hpos.join(', '); if (hpos.length) $('iHinges').dataset.touched = '1'; else delete $('iHinges').dataset.touched;
   syncInvForm(); previewItem();
 }
 function syncInvForm(){
   const std = isStandard($('iCode').value.trim().toUpperCase());
-  for (const id of ['iCon','iW','iH','iD','iDoors','iShelves','iDrawers','iPlinth','iDrType','iSupport','iFloor','iSink']) $(id).disabled = std;
+  for (const id of ['iCon','iW','iH','iD','iDoors','iShelves','iDrawers','iPlinth','iDrType','iSupport','iFloor','iSink','iBack','iBaseP','iFixed','iHinges']) $(id).disabled = std;
   if (!std){
     const con = $('iCon').value;
+    // the flexible cabinet shows only what it needs: back, base, shelves, fixed shelf, hinges
+    const flex = con === 'flex';
+    const showF = (id, on) => { const l = $(id).closest('label'); if (l) l.style.display = on ? '' : 'none'; };
+    for (const id of ['iBack','iBaseP','iFixed','iHinges']) showF(id, flex);
+    for (const id of ['iDrawers','iDrType','iPlinth','iSink','iFloor']) showF(id, !flex);
+    showF('iSupport', flex || con==='robe' || con==='base');
+    $('lblShelves').textContent = flex ? 'Adjustable shelves' : 'Shelves';
+    if (flex){
+      $('iDrawers').value = 0; $('iDrType').value = 'external';
+      if (!$('iHinges').dataset.touched) $('iHinges').value = '100, ' + Math.round(Math.min(750, (+$('iH').value || 720) - 100));
+    }
     const onLegs = con==='robe' && $('iSupport').value!=='plinth';
     $('iPlinth').disabled = !((con==='robe' && !onLegs)||con==='plinth');
     // wardrobes: plinth or legs; base units: 100 or 150 legs only
-    $('iSupport').disabled = !(con==='robe'||con==='base');
-    $('iSupport').options[0].disabled = con==='base';
-    if (con==='base' && $('iSupport').value==='plinth') $('iSupport').value = 'legs100';
-    if (con!=='robe' && con!=='base') $('iSupport').value = 'plinth';
+    $('iSupport').disabled = !(con==='robe'||con==='base'||flex) || (flex && $('iBaseP').value==='no');
+    $('iSupport').options[0].disabled = con==='base' || flex;
+    if ((con==='base' || flex) && $('iSupport').value==='plinth') $('iSupport').value = 'legs100';
+    if (con!=='robe' && con!=='base' && !flex) $('iSupport').value = 'plinth';
     $('iSink').disabled = con!=='base'; if (con!=='base') $('iSink').value = 'no';
     $('iFloor').disabled = !onLegs; if (!onLegs) $('iFloor').value = 'none';
     $('iDrawers').disabled = !(con==='base'||con==='plinth'||con==='robe');
@@ -2163,7 +2509,8 @@ function cabinetView(b){
   const o = b.options, m = b.meta || {}, P = b.parts, T = E.T;
   const con = b.family==='CUSTOM' ? o.construction : ({BHL:'base',B3D:'base',BCHL:'base',WM:'wall',LM:'tall',SHR:'robe',C3J:'plinth'})[b.family] || 'base';
   const robeLegs = con==='robe' && m.legs ? m.legs : 0;
-  const w = +o.w, h = +o.h, pl = (con==='robe'&&!robeLegs)||con==='plinth' ? +(o.plinth||100) : 0, legs = con==='base' ? (+o.legH===150 ? 150 : 100) : con==='tall' ? 100 : 0;
+  const w = +o.w, h = +o.h, pl = (con==='robe'&&!robeLegs)||con==='plinth' ? +(o.plinth||100) : 0, legs = con==='base' ? (+o.legH===150 ? 150 : 100) : con==='tall' ? 100 : con==='flex' ? (m.legs || 0) : 0;
+  const noBase = con==='flex' && m.hasBase===false;
   const bot = pl ? h - pl : robeLegs ? h - robeLegs : h;   // underside of the bottom panel
   const hL = (P.find(p=>p.role==='lhEnd' && !p.inner)||{L:h}).L, hR = (P.find(p=>p.role==='rhEnd' && !p.inner)||{L:h}).L;
   const pad = 70, k = 1/3;                              // mm -> px scale is set by the viewBox
@@ -2172,15 +2519,16 @@ function cabinetView(b){
   const Tx = (x,y,t,a='middle',sz=34,fill='var(--ink-2)') => `<text x="${(x+pad).toFixed(1)}" y="${(y+40).toFixed(1)}" text-anchor="${a}" font-size="${sz}" fill="${fill}" font-family="JetBrains Mono,monospace">${t}</text>`;
   const line = 'stroke="var(--board-line)" stroke-width="2"';
   let g = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Front view of the cabinet with the doors off">`;
-  g += R(T, T, w-2*T, bot-2*T, 'var(--surface-2)');                     // inside
+  g += R(T, T, w-2*T, bot-(noBase?1:2)*T, 'var(--surface-2)');          // inside
   if (robeLegs) for (const x of [T+25, w-T-55]) g += R(x, bot, 30, robeLegs, 'var(--ink-2)');
   g += R(0, 0, T, hL, 'var(--board)', line) + R(w-T, 0, T, hR, 'var(--board)', line);
   g += R(T, 0, w-2*T, T, 'var(--board)', line);                         // top / rail
-  g += R(T, bot-T, w-2*T, T, 'var(--board)', line);                     // base / bottom
+  if (!noBase) g += R(T, bot-T, w-2*T, T, 'var(--board)', line);        // base / bottom
   if (pl) g += R(T+12, bot, w-2*T-24, pl, 'var(--line-2)', line);
   if (legs) for (const x of [40, w-70]) g += R(x, h, 30, legs, 'var(--ink-2)');
   const post = P.find(p => p.role==='post' && p.name==='Center Post');
-  const bounds = [T, bot-T];                                            // horizontal faces inside, for the spacing figures
+  const bounds = [T, noBase ? bot : bot-T];                             // horizontal faces inside, for the spacing figures
+  if (m.fixed){ const fy = h - m.fixed; g += R(T+1, fy, w-2*T-2, T, 'var(--board)', line); bounds.push(fy, fy+T); }   // fixed shelf (top face is m.fixed up from the bottom)
   // a shelf sits on its pins: the pin row is its underside
   for (const r of (m.rows||[])){ g += R(T+1, r-T, w-2*T-2, T, 'var(--board)', line + ' opacity="0.95"'); bounds.push(r-T, r); }
   if (m.hatRail && (m.rows||[]).length){ const y = m.rows[0] + 70; g += `<line x1="${T+30+pad}" x2="${w-T-30+pad}" y1="${y+40}" y2="${y+40}" stroke="var(--ink-2)" stroke-width="10" stroke-linecap="round"/>` + Tx(w/2, y+45, 'hanging rail', 'middle', 26); }
@@ -2218,11 +2566,16 @@ function viewCaption(b){
   if (sh) bits.push(sh + (sh===1 ? ' shelf' : ' shelves'));
   if (n) bits.push(n + (m.internal ? ' internal' : ' external') + (n===1 ? ' drawer' : ' drawers'));
   if (m.hatRail) bits.push('hanging rail');
+  if (m.hasBack === false) bits.push('no back');
+  if (m.hasBase === false) bits.push('no base');
+  if (m.fixed) bits.push('fixed shelf ' + m.fixed + ' from bottom');
+  if (m.hinges && m.hinges.length) bits.push('hinges at ' + m.hinges.join(', ') + ' from top');
   if (m.legs) bits.push('legs ' + m.legs + (m.floor && m.floor!=='none' ? ', ' + ({L:'LH gable',R:'RH gable',both:'both gables'})[m.floor] + ' to the floor' : ''));
   return 'Front view, doors off' + (bits.length ? ': ' + bits.join(', ') : '');
 }
 function renderInv(){
-  const list = Object.values(inv).sort((a,b)=>(CATS.indexOf(a.category)-CATS.indexOf(b.category)) || a.code.localeCompare(b.code));
+  const list = Object.values(inv).sort(byCat);
+  $('catList').innerHTML = [...new Set([...CATS, ...list.map(i => i.category).filter(Boolean)])].map(c => `<option value="${esc(c)}"></option>`).join('');
   $('invRows').innerHTML = list.length ? list.map(i => { const p = itemParams(i); return `<tr>
     <td class="mono"><b>${esc(i.code)}</b></td><td>${esc(i.name)}</td><td>${esc(i.category)}</td><td class="mono">${p.w} × ${p.h} × ${p.d}</td>
     <td class="num">${+i.price ? money(i.price) : '—'}</td>
@@ -2251,6 +2604,19 @@ $('invForm').addEventListener('submit', async e => {
   catch(err){ $('invMsg').textContent = `Couldn't save (${err && err.message || err}). Your entries are still in the form.`; }
 });
 $('invForm').addEventListener('input', e => { if (e.target.id==='iCon'){ const d = CON_DEFAULTS[$('iCon').value]; $('iH').value=d.h; $('iD').value=d.d; $('iDoors').value=d.doors; $('iShelves').value=d.shelves; $('iDrawers').value=d.drawers; } syncInvForm(); previewItem(); });
+$('iImport').onclick = async () => {
+  const todo = CAB_BUILDER_CATALOGUE.filter(c => !inv[c.code] && !isStandard(c.code));
+  if (!todo.length){ $('invMsg').textContent = 'Every Cab Builder cabinet is already in the inventory.'; return; }
+  $('iImport').disabled = true; let n = 0;
+  try {
+    for (const c of todo){
+      await put('inventory', c.code, Object.assign({ code:c.code, name:c.name, category:c.category, price:0, active:true }, E.sanitizeCustom(c)));
+      n++; if (n % 20 === 0) $('invMsg').textContent = `Importing… ${n} of ${todo.length}`;
+    }
+    $('invMsg').textContent = `Imported ${n} cabinets from Cab Builder at £0.00. Set prices as needed. Corner units, panels and accessories were not imported.`;
+  } catch(err){ $('invMsg').textContent = `Stopped after ${n} (${err && err.message || err}). Press Import again to carry on.`; }
+  $('iImport').disabled = false;
+};
 $('iNew').onclick = () => { fillItem(Object.assign({code:'', name:'', category:CATS[0], price:'', construction:'base', w:600}, CON_DEFAULTS.base)); $('invMsg').textContent=''; };
 $('invRows').addEventListener('click', async e => {
   const b = e.target.closest('button'); if (!b) return;
@@ -2258,21 +2624,10 @@ $('invRows').addEventListener('click', async e => {
   if (b.dataset.del){
     if (ui.armed !== b.dataset.del){ ui.armed = b.dataset.del; renderInv(); return; }
     ui.armed = null;
-    try { if (!S.db && SEED_INVENTORY[b.dataset.del]) await put('inventory', b.dataset.del, { code:b.dataset.del, removed:true }); else await del('inventory', b.dataset.del); $('invMsg').textContent = `Removed ${b.dataset.del} from the shop. Orders already placed keep it.`; }
+    try { await del('inventory', b.dataset.del); $('invMsg').textContent = `Removed ${b.dataset.del} from the shop. Orders already placed keep it.`; }
     catch(err){ $('invMsg').textContent = `Couldn't remove: ${err.message||err}`; renderInv(); }
   }
 });
-
-$('expInv').onclick = async () => {
-  const text = 'const SEED_INVENTORY = ' + JSON.stringify(inv, null, 1) + ';';
-  const n = Object.keys(inv).length;
-  try { await navigator.clipboard.writeText(text); $('expMsg').textContent = `Copied ${n} cabinets. In index.html replace the line "const SEED_INVENTORY = {};" with it, then commit and push.`; }
-  catch(e){
-    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], {type:'text/plain'})); a.download = 'inventory-seed.txt';
-    document.body.appendChild(a); a.click(); a.remove();
-    $('expMsg').textContent = `Downloaded inventory-seed.txt (${n} cabinets). Paste its contents over the line "const SEED_INVENTORY = {};" in index.html, then commit and push.`;
-  }
-};
 
 /* ---------- navigation ---------- */
 function go(view){
@@ -2309,7 +2664,7 @@ async function start(){
       ? 'Sign in to Claude to place real orders. Until then everything here is saved in this browser only.'
       : 'Demo mode: inventory and orders are saved in this browser only. Connect a database before taking real orders.', true);
   }
-  watch('inventory', m => { inv = S.db ? m : withSeed(m); renderAll(); });
+  watch('inventory', m => { inv = m; renderAll(); });
   if (S.staff) watch('orders', m => {
     orderDocs = m; orders = {};
     for (const [docId, d] of Object.entries(m)) for (const o of (d && d.orders) || []) orders[o.id] = Object.assign({}, o, { _doc: docId });
